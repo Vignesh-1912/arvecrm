@@ -1,0 +1,17 @@
+# Local development
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# PHP / Composer
+/vendor/
+.phpunit.result.cache
+
+# Local test/debug files
+*.log
