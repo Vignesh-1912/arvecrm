@@ -2,12 +2,12 @@
 
 session_start();
 
+require_once "../config/database.php";
+
 if (!isset($_SESSION["user_id"])) {
     header("Location: ../auth/login.php");
     exit;
 }
-
-require_once "../config/database.php";
 
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
     header("Location: index.php");
@@ -18,7 +18,7 @@ $id = (int) $_GET["id"];
 
 try {
 
-    $sql = "DELETE FROM companies WHERE id = :id";
+    $sql = "DELETE FROM activities WHERE id = :id";
 
     $stmt = $conn->prepare($sql);
 
@@ -31,6 +31,6 @@ try {
 
 } catch (PDOException $e) {
 
-    die("Unable to delete company: " . $e->getMessage());
-
+    die("Unable to delete activity: " . $e->getMessage());
 }
+?>

@@ -26,6 +26,8 @@ $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <title>Customers - CRM</title>
 
+    <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+
     <style>
 
         * {
@@ -129,6 +131,10 @@ $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </a>
 
     </div>
+
+<?php include "../includes/sidebar.php"; ?>
+
+<div class="main-content">
 
     <div class="container">
 
@@ -245,6 +251,8 @@ $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
     </div>
+
+</div>
 
 </body>
 

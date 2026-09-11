@@ -18,7 +18,11 @@ $id = (int) $_GET["id"];
 
 try {
 
-    $sql = "DELETE FROM companies WHERE id = :id";
+    // Delete quote
+    // quote_items will also be deleted automatically
+    // because quote_items.quote_id uses ON DELETE CASCADE.
+
+    $sql = "DELETE FROM quotes WHERE id = :id";
 
     $stmt = $conn->prepare($sql);
 
@@ -31,6 +35,8 @@ try {
 
 } catch (PDOException $e) {
 
-    die("Unable to delete company: " . $e->getMessage());
+    die("Unable to delete quote: " . $e->getMessage());
 
 }
+
+?>

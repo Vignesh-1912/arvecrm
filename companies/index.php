@@ -9,6 +9,8 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/database.php";
 
+$sidebar_path = "../includes/sidebar.php";
+
 $sql = "SELECT * FROM companies ORDER BY id DESC";
 $stmt = $conn->query($sql);
 
@@ -26,6 +28,8 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Companies - CRM</title>
+
+    <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
 
     <style>
 
@@ -108,6 +112,10 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 
 <body>
+
+<?php include $sidebar_path; ?>
+
+<div class="main-content">
 
 <div class="container">
 
@@ -238,6 +246,8 @@ $companies = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </tbody>
 
     </table>
+
+</div>
 
 </div>
 

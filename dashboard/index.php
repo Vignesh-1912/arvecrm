@@ -23,6 +23,8 @@ require_once "../config/database.php";
 
     <title>CRM Dashboard</title>
 
+    <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+
     <style>
 
         * {
@@ -33,40 +35,6 @@ require_once "../config/database.php";
             margin: 0;
             font-family: Arial, sans-serif;
             background: #f4f6f9;
-        }
-
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 240px;
-            height: 100vh;
-            background: #1e293b;
-            color: white;
-            padding: 20px;
-        }
-
-        .sidebar h2 {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .sidebar a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 12px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-        }
-
-        .sidebar a:hover {
-            background: #334155;
-        }
-
-        .main {
-            margin-left: 240px;
-            padding: 25px;
         }
 
         .topbar {
@@ -123,14 +91,6 @@ require_once "../config/database.php";
 
         @media (max-width: 600px) {
 
-            .sidebar {
-                width: 200px;
-            }
-
-            .main {
-                margin-left: 200px;
-            }
-
             .cards {
                 grid-template-columns: 1fr;
             }
@@ -143,42 +103,9 @@ require_once "../config/database.php";
 
 <body>
 
-    <!-- Sidebar -->
+    <?php include "../includes/sidebar.php"; ?>
 
-    <div class="sidebar">
-
-        <h2>CRM</h2>
-
-        <a href="index.php">Dashboard</a>
-
-        <a href="../customers/index.php">Customers</a>
-
-        <a href="../companies/index.php">Companies</a>
-
-        <a href="../contacts/index.php">Contacts</a>
-
-        <a href="../leads/index.php">Leads</a>
-
-        <a href="../deals/index.php">Deals</a>
-
-        <a href="../products/index.php">Products</a>
-
-        <a href="../quotes/index.php">Quotes</a>
-
-        <a href="../sales/index.php">Sales</a>
-
-        <a href="../tasks/index.php">Tasks</a>
-
-        <a href="../reports/index.php">Reports</a>
-
-        <a href="../auth/logout.php">Logout</a>
-
-    </div>
-
-
-    <!-- Main Content -->
-
-    <div class="main">
+    <div class="main-content">
 
         <div class="topbar">
 
