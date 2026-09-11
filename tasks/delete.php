@@ -18,7 +18,7 @@ $id = (int) $_GET["id"];
 
 try {
 
-    $sql = "DELETE FROM companies WHERE id = :id";
+    $sql = "DELETE FROM tasks WHERE id = :id";
 
     $stmt = $conn->prepare($sql);
 
@@ -31,6 +31,8 @@ try {
 
 } catch (PDOException $e) {
 
-    die("Unable to delete company: " . $e->getMessage());
+    die("Unable to delete task: " . $e->getMessage());
 
 }
+
+?>

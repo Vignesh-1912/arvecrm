@@ -9,6 +9,9 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/database.php";
 
+
+// Check ID
+
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
     header("Location: index.php");
     exit;
@@ -16,9 +19,12 @@ if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
 
 $id = (int) $_GET["id"];
 
+
 try {
 
-    $sql = "DELETE FROM companies WHERE id = :id";
+    // Delete lead
+
+    $sql = "DELETE FROM leads WHERE id = :id";
 
     $stmt = $conn->prepare($sql);
 
@@ -26,11 +32,17 @@ try {
         ":id" => $id
     ]);
 
+
+    // Redirect to Leads
+
     header("Location: index.php");
     exit;
 
+
 } catch (PDOException $e) {
 
-    die("Unable to delete company: " . $e->getMessage());
+    die("Unable to delete lead: " . $e->getMessage());
 
 }
+
+?>

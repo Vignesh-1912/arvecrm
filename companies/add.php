@@ -112,6 +112,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <title>Add Company - CRM</title>
 
+    <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+
     <style>
 
         body {
@@ -193,6 +195,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 
 <body>
+
+<?php include "../includes/sidebar.php"; ?>
+
+<div class="main-content">
 
 <div class="container">
 
@@ -346,6 +352,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </a>
 
     </form>
+
+</div>
 
 </div>
 

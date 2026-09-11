@@ -1,0 +1,139 @@
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f9;
+    overflow-x: hidden;
+}
+
+/* Sidebar */
+
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 250px;
+    height: 100vh;
+    background: #111827;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+/* Logo */
+
+.sidebar-logo {
+    padding: 25px 20px;
+    border-bottom: 1px solid #374151;
+}
+
+.sidebar-logo h2 {
+    margin: 0;
+    font-size: 26px;
+}
+
+.sidebar-logo p {
+    margin: 5px 0 0;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* Menu */
+
+.sidebar-menu {
+    flex: 1;
+    padding: 15px 10px;
+
+    /* Keep scrolling but hide scrollbar */
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* Firefox */
+    scrollbar-width: none;
+
+    /* IE/Edge */
+    -ms-overflow-style: none;
+}
+
+.sidebar-menu::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+}
+
+.sidebar-menu::-webkit-scrollbar-track {
+    display: none !important;
+}
+
+.sidebar-menu::-webkit-scrollbar-thumb {
+    display: none !important;
+}
+
+.sidebar-menu a,
+.sidebar-bottom a {
+    display: block;
+    padding: 13px 15px;
+    margin-bottom: 5px;
+    color: #d1d5db;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 15px;
+    transition: 0.2s;
+}
+
+.sidebar-menu a:hover,
+.sidebar-bottom a:hover {
+    background: #1f2937;
+    color: white;
+}
+
+/* Active menu */
+
+.sidebar-menu a.active {
+    background: #2563eb;
+    color: white;
+}
+
+/* Logout */
+
+.sidebar-bottom {
+    padding: 10px;
+    border-top: 1px solid #374151;
+}
+
+.sidebar-bottom a {
+    color: #fca5a5;
+}
+
+.sidebar-bottom a:hover {
+    background: #7f1d1d;
+    color: white;
+}
+
+/* Main content */
+
+.main-content {
+    margin-left: 250px;
+    min-height: 100vh;
+    padding: 30px;
+}
+
+/* Mobile */
+
+@media (max-width: 768px) {
+
+    .sidebar {
+        width: 220px;
+    }
+
+    .main-content {
+        margin-left: 220px;
+    }
+
+}

@@ -18,7 +18,11 @@ $id = (int) $_GET["id"];
 
 try {
 
-    $sql = "DELETE FROM companies WHERE id = :id";
+    // Delete sale
+    // Related sale_items will be deleted automatically
+    // because sale_items.sale_id uses ON DELETE CASCADE.
+
+    $sql = "DELETE FROM sales WHERE id = :id";
 
     $stmt = $conn->prepare($sql);
 
@@ -31,6 +35,8 @@ try {
 
 } catch (PDOException $e) {
 
-    die("Unable to delete company: " . $e->getMessage());
+    die("Unable to delete sale: " . $e->getMessage());
 
 }
+
+?>

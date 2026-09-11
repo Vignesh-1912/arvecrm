@@ -44,6 +44,8 @@ if (!$customer) {
 
     <title>View Customer - CRM</title>
 
+    <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+
     <style>
 
         * {
@@ -176,6 +178,10 @@ if (!$customer) {
 </head>
 
 <body>
+
+<?php include "../includes/sidebar.php"; ?>
+
+<div class="main-content">
 
     <div class="container">
 
@@ -330,6 +336,8 @@ if (!$customer) {
         </div>
 
     </div>
+
+</div>
 
 </body>
 

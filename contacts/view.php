@@ -9,6 +9,9 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/database.php";
 
+
+// Check ID
+
 if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
     header("Location: index.php");
     exit;
@@ -16,7 +19,16 @@ if (!isset($_GET["id"]) || !is_numeric($_GET["id"])) {
 
 $id = (int) $_GET["id"];
 
-$sql = "SELECT * FROM companies WHERE id = :id";
+
+// Get Contact
+
+$sql = "SELECT
+            contacts.*,
+            companies.company_name
+        FROM contacts
+        LEFT JOIN companies
+            ON contacts.company_id = companies.id
+        WHERE contacts.id = :id";
 
 $stmt = $conn->prepare($sql);
 
@@ -24,10 +36,13 @@ $stmt->execute([
     ":id" => $id
 ]);
 
-$company = $stmt->fetch(PDO::FETCH_ASSOC);
+$contact = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$company) {
-    die("Company not found.");
+
+// Contact not found
+
+if (!$contact) {
+    die("Contact not found.");
 }
 
 ?>
@@ -41,18 +56,18 @@ if (!$company) {
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>View Company - CRM</title>
+    <title>View Contact - CRM</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
 
     <style>
 
-        .company-container {
-            max-width: 900px;
-            margin: auto;
+        .content-container {
             background: white;
             padding: 30px;
             border-radius: 10px;
+            max-width: 900px;
+            margin: auto;
             box-shadow: 0 5px 20px rgba(0,0,0,0.08);
         }
 
@@ -72,46 +87,48 @@ if (!$company) {
             border-collapse: collapse;
         }
 
-        .details-table tr {
+        .details-table th,
+        .details-table td {
+            padding: 14px;
             border-bottom: 1px solid #e5e7eb;
+            text-align: left;
         }
 
         .details-table th {
-            width: 220px;
-            text-align: left;
-            padding: 15px;
+            width: 30%;
             background: #f8fafc;
+            font-weight: bold;
         }
 
-        .details-table td {
-            padding: 15px;
+        .button-area {
+            margin-top: 25px;
         }
 
-        .btn {
+        .edit-btn {
             display: inline-block;
-            padding: 10px 16px;
+            background: #2563eb;
+            color: white;
+            padding: 10px 18px;
             border-radius: 5px;
             text-decoration: none;
-            color: white;
-            background: #2563eb;
         }
 
-        .btn:hover {
+        .edit-btn:hover {
             background: #1d4ed8;
         }
 
         .back-btn {
+            display: inline-block;
             background: #6b7280;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 5px;
+            text-decoration: none;
             margin-left: 8px;
         }
 
         .back-btn:hover {
             background: #4b5563;
-        }
-
-        .website-link {
-            color: #2563eb;
-            text-decoration: none;
         }
 
     </style>
@@ -122,185 +139,205 @@ if (!$company) {
 
 <?php include "../includes/sidebar.php"; ?>
 
+
 <div class="main-content">
 
-    <div class="company-container">
+    <div class="content-container">
 
         <div class="page-header">
 
-            <h2>
-                Company Details
-            </h2>
-
-            <div>
-
-                <a
-                    href="edit.php?id=<?php echo $company["id"]; ?>"
-                    class="btn"
-                >
-                    Edit
-                </a>
-
-                <a
-                    href="index.php"
-                    class="btn back-btn"
-                >
-                    Back
-                </a>
-
-            </div>
+            <h2>Contact Details</h2>
 
         </div>
+
 
         <table class="details-table">
 
             <tr>
 
-                <th>Company ID</th>
+                <th>Contact ID</th>
 
                 <td>
-                    <?php echo $company["id"]; ?>
+                    <?php echo $contact["id"]; ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
-                <th>Company Name</th>
+                <th>First Name</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["company_name"]); ?>
+                    <?php echo htmlspecialchars($contact["first_name"]); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
-                <th>Industry</th>
+                <th>Last Name</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["industry"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["last_name"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
-                <th>Phone</th>
+                <th>Company</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["phone"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["company_name"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>Email</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["email"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["email"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
-                <th>Website</th>
+                <th>Phone</th>
 
                 <td>
-
-                    <?php if (!empty($company["website"])): ?>
-
-                        <a
-                            href="<?php echo htmlspecialchars($company["website"]); ?>"
-                            target="_blank"
-                            class="website-link"
-                        >
-                            <?php echo htmlspecialchars($company["website"]); ?>
-                        </a>
-
-                    <?php else: ?>
-
-                        -
-
-                    <?php endif; ?>
-
+                    <?php echo htmlspecialchars($contact["phone"] ?? "-"); ?>
                 </td>
 
             </tr>
+
+
+            <tr>
+
+                <th>Job Title</th>
+
+                <td>
+                    <?php echo htmlspecialchars($contact["job_title"] ?? "-"); ?>
+                </td>
+
+            </tr>
+
+
+            <tr>
+
+                <th>Status</th>
+
+                <td>
+                    <?php echo htmlspecialchars($contact["status"]); ?>
+                </td>
+
+            </tr>
+
 
             <tr>
 
                 <th>Address</th>
 
                 <td>
-                    <?php echo nl2br(htmlspecialchars($company["address"] ?? "")); ?>
+                    <?php echo nl2br(htmlspecialchars($contact["address"] ?? "-")); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>City</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["city"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["city"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>State</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["state"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["state"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>Country</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["country"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["country"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>Postal Code</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["postal_code"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["postal_code"] ?? "-"); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>Created At</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["created_at"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["created_at"]); ?>
                 </td>
 
             </tr>
+
 
             <tr>
 
                 <th>Updated At</th>
 
                 <td>
-                    <?php echo htmlspecialchars($company["updated_at"] ?? ""); ?>
+                    <?php echo htmlspecialchars($contact["updated_at"] ?? "-"); ?>
                 </td>
 
             </tr>
 
         </table>
+
+
+        <div class="button-area">
+
+            <a
+                href="edit.php?id=<?php echo $contact["id"]; ?>"
+                class="edit-btn"
+            >
+                Edit Contact
+            </a>
+
+
+            <a
+                href="index.php"
+                class="back-btn"
+            >
+                Back to Contacts
+            </a>
+
+        </div>
 
     </div>
 
