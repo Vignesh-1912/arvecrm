@@ -1,0 +1,28 @@
+.header {
+    background: #1e293b;
+    color: white;
+    padding: 10px 30px;
+    min-height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.back-btn {
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+}
+
+.back-btn:hover {
+    color: #dbeafe;
+}

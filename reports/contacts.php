@@ -72,6 +72,7 @@ foreach ($contacts as $contact) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contacts Report</title>
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
     <style>
         .page-header {
             margin-bottom: 25px;
@@ -223,10 +224,10 @@ foreach ($contacts as $contact) {
 <?php include "../includes/sidebar.php"; ?>
 
 <div class="main-content">
-    <div class="page-header">
-        <h1>Contacts Report</h1>
-        <p>Contact directory and status overview</p>
-    </div>
+    <?php
+    $page_title = "Contacts Report";
+    include "../includes/report_header.php";
+    ?>
 
     <div class="filter-box">
         <form method="GET" class="filter-form">
@@ -258,6 +259,18 @@ foreach ($contacts as $contact) {
                     class="btn btn-success"
                 >
                     Export CSV
+                </a>
+                <a
+                    href="../exports/contacts_excel.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                    class="btn btn-success"
+                >
+                    Export Excel
+                </a>
+                <a
+                    href="../exports/contacts_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                    class="btn btn-success"
+                >
+                    Export PDF
                 </a>
             </div>
         </form>

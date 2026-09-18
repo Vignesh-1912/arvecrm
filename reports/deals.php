@@ -108,6 +108,7 @@ foreach ($deals as $deal) {
     <title>Deals Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
 
@@ -333,23 +334,10 @@ foreach ($deals as $deal) {
 
 <div class="main-content">
 
-    <div class="report-header">
-
-        <div>
-
-            <h1>💼 Deals Report</h1>
-
-            <p>
-                Deal pipeline and value overview
-            </p>
-
-        </div>
-
-        <a href="index.php" class="back-button">
-            ← Back to Reports
-        </a>
-
-    </div>
+    <?php
+    $page_title = "Deals Report";
+    include "../includes/report_header.php";
+    ?>
 
 
     <!-- DATE FILTER -->

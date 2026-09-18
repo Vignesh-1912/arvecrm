@@ -117,6 +117,7 @@ foreach ($leads as $lead) {
     <title>Leads Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
         /* Filter button area */
@@ -372,23 +373,10 @@ foreach ($leads as $lead) {
 
 <div class="main-content">
 
-    <div class="report-header">
-
-        <div>
-
-            <h1>🎯 Leads Report</h1>
-
-            <p>
-                Lead pipeline, sources and value overview
-            </p>
-
-        </div>
-
-        <a href="index.php" class="back-button">
-            ← Back to Reports
-        </a>
-
-    </div>
+    <?php
+    $page_title = "Leads Report";
+    include "../includes/report_header.php";
+    ?>
 
 
     <!-- DATE FILTER -->

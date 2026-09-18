@@ -116,31 +116,34 @@ foreach ($sales as $sale) {
     <title>Sales Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
 
-        .report-header {
+        .header {
+            background: #1e293b;
+            color: white;
+            padding: 10px 30px;
+            min-height: 60px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px;
         }
 
-        .report-header h1 {
+        .header h1 {
             margin: 0;
+            font-size: 24px;
         }
 
-        .report-header p {
-            color: #6b7280;
-            margin-top: 5px;
-        }
-
-        .back-button {
-            background: #6b7280;
+        .back-btn {
             color: white;
             text-decoration: none;
-            padding: 10px 18px;
-            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        .back-btn:hover {
+            color: #dbeafe;
         }
 
         .filter-box {
@@ -308,15 +311,6 @@ foreach ($sales as $sale) {
                 grid-template-columns: 1fr;
             }
 
-            .report-header {
-                display: block;
-            }
-
-            .back-button {
-                display: inline-block;
-                margin-top: 15px;
-            }
-
         }
 
     </style>
@@ -329,20 +323,12 @@ foreach ($sales as $sale) {
 
 <div class="main-content">
 
-    <div class="report-header">
+    <div class="header">
 
-        <div>
+        <h1>💰 Sales Report</h1>
 
-            <h1>💰 Sales Report</h1>
-
-            <p>
-                Detailed sales and payment overview
-            </p>
-
-        </div>
-
-        <a href="index.php" class="back-button">
-            ← Back to Reports
+        <a href="index.php" class="back-btn">
+            ← Reports
         </a>
 
     </div>
@@ -407,7 +393,7 @@ foreach ($sales as $sale) {
 
             <a
                 href="../exports/sales_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
-                class="btn-success"
+                class="btn btn-success"
             >
                 Export PDF
             </a>

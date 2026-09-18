@@ -10,54 +10,44 @@ body {
     overflow-x: hidden;
 }
 
-/* Sidebar */
-
 .sidebar {
     position: fixed;
     left: 0;
     top: 0;
     width: 250px;
     height: 100vh;
-    background: #111827;
-    color: white;
+    background: #ffffff;
+    color: #172554;
     display: flex;
     flex-direction: column;
     z-index: 1000;
     overflow: hidden;
+    border-right: 1px solid #e5e7eb;
 }
-
-/* Logo */
 
 .sidebar-logo {
     padding: 25px 20px;
-    border-bottom: 1px solid #374151;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .sidebar-logo h2 {
     margin: 0;
     font-size: 26px;
+    color: #172554;
 }
 
 .sidebar-logo p {
     margin: 5px 0 0;
-    color: #9ca3af;
+    color: #64748b;
     font-size: 13px;
 }
-
-/* Menu */
 
 .sidebar-menu {
     flex: 1;
     padding: 15px 10px;
-
-    /* Keep scrolling but hide scrollbar */
     overflow-y: auto;
     overflow-x: hidden;
-
-    /* Firefox */
     scrollbar-width: none;
-
-    /* IE/Edge */
     -ms-overflow-style: none;
 }
 
@@ -67,56 +57,49 @@ body {
     display: none !important;
 }
 
-.sidebar-menu::-webkit-scrollbar-track {
-    display: none !important;
-}
-
-.sidebar-menu::-webkit-scrollbar-thumb {
-    display: none !important;
-}
-
 .sidebar-menu a,
 .sidebar-bottom a {
     display: block;
     padding: 13px 15px;
     margin-bottom: 5px;
-    color: #d1d5db;
+    color: #334155;
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 15px;
-    transition: 0.2s;
+    transition: all 0.2s ease;
 }
 
-.sidebar-menu a:hover,
-.sidebar-bottom a:hover {
-    background: #1f2937;
-    color: white;
+.sidebar-menu a:hover {
+    background: #f1f5f9;
+    color: #2563eb;
 }
-
-/* Active menu */
 
 .sidebar-menu a.active {
-    background: #2563eb;
-    color: white;
+    background: #dbeafe;
+    color: #2563eb;
+    font-weight: 500;
 }
 
-/* Logout */
+.sidebar-menu a.active:hover {
+    background: #dbeafe;
+    color: #2563eb;
+}
 
 .sidebar-bottom {
     padding: 10px;
-    border-top: 1px solid #374151;
+    border-top: 1px solid #e5e7eb;
+    background: #ffffff;
+    flex-shrink: 0;
 }
 
 .sidebar-bottom a {
-    color: #fca5a5;
+    color: #475569;
 }
 
 .sidebar-bottom a:hover {
-    background: #7f1d1d;
-    color: white;
+    background: #f1f5f9;
+    color: #2563eb;
 }
-
-/* Main content */
 
 .main-content {
     margin-left: 250px;
@@ -124,10 +107,7 @@ body {
     padding: 30px;
 }
 
-/* Mobile */
-
 @media (max-width: 768px) {
-
     .sidebar {
         width: 220px;
     }
@@ -135,5 +115,4 @@ body {
     .main-content {
         margin-left: 220px;
     }
-
 }

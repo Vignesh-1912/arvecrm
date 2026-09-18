@@ -177,6 +177,7 @@ foreach ($activities as $activity) {
     <title>Tasks & Activities Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
         * {
@@ -624,11 +625,10 @@ body {
 
 <div class="main-content">
 
-    <div class="report-header">
-
-        <h1>Tasks & Activities Report</h1>
-
-    </div>
+    <?php
+    $page_title = "Tasks & Activities Report";
+    include "../includes/report_header.php";
+    ?>
 
     <!-- DATE FILTER -->
 
@@ -691,6 +691,13 @@ body {
                 </a>
 
                 <a
+                    href="../exports/tasks_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                    class="btn btn-success"
+                >
+                    Export PDF
+                </a>
+
+                <a
                     href="../exports/activities_csv.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
                     class="btn btn-success"
                 >
@@ -702,6 +709,13 @@ body {
                     class="btn btn-success"
                 >
                     Export Activities Excel
+                </a>
+
+                <a
+                    href="../exports/activities_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                    class="btn btn-success"
+                >
+                    Export PDF
                 </a>
 
             </div>

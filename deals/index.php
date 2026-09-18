@@ -9,36 +9,85 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/database.php";
 
+/* ==============================
+   DEALS
+============================== */
 
-// Get Deals
+$stmt = $conn->query("
+    SELECT
+        d.id,
+        d.title,
+        d.amount,
+        d.stage,
+        d.probability,
+        d.expected_close_date,
+        d.description,
+        d.created_at,
 
-$sql = "SELECT
-            deals.*,
-            companies.company_name,
-            contacts.first_name,
-            contacts.last_name,
-            customers.customer_code,
-            users.name AS assigned_user
+        co.company_name,
 
-        FROM deals
+        CONCAT(
+            COALESCE(ct.first_name, ''),
+            ' ',
+            COALESCE(ct.last_name, '')
+        ) AS contact_name,
 
-        LEFT JOIN companies
-            ON deals.company_id = companies.id
+        cu.customer_code,
 
-        LEFT JOIN contacts
-            ON deals.contact_id = contacts.id
+        u.name AS assigned_name
 
-        LEFT JOIN customers
-            ON deals.customer_id = customers.id
+    FROM deals d
 
-        LEFT JOIN users
-            ON deals.assigned_to = users.id
+    LEFT JOIN companies co
+        ON co.id = d.company_id
 
-        ORDER BY deals.id ASC";
+    LEFT JOIN contacts ct
+        ON ct.id = d.contact_id
 
-$stmt = $conn->query($sql);
+    LEFT JOIN customers cu
+        ON cu.id = d.customer_id
+
+    LEFT JOIN users u
+        ON u.id = d.assigned_to
+
+    ORDER BY d.id DESC
+");
 
 $deals = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+/* ==============================
+   SUMMARY
+============================== */
+
+$total_deals = count($deals);
+
+$closed_won_deals = 0;
+$open_deals = 0;
+$total_deal_value = 0;
+
+foreach ($deals as $deal) {
+
+    $stage = strtolower(
+        trim($deal["stage"] ?? "")
+    );
+
+    $amount = (float) (
+        $deal["amount"] ?? 0
+    );
+
+    $total_deal_value += $amount;
+
+    if (
+        $stage === "closed_won" ||
+        $stage === "closed won" ||
+        $stage === "won" ||
+        $stage === "closed"
+    ) {
+        $closed_won_deals++;
+    } else {
+        $open_deals++;
+    }
+}
 
 ?>
 
@@ -63,152 +112,839 @@ $deals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <style>
 
-        .content-container {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        /* =========================
+           GLOBAL
+        ========================= */
+
+        * {
+            box-sizing: border-box;
         }
 
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .top-bar h2 {
+        html,
+        body {
             margin: 0;
+            padding: 0;
+
+            font-family: Arial, sans-serif;
+
+            background: #f8fafc;
+
+            color: #0f172a;
+
+            overflow-x: hidden;
+        }
+
+        .main-content {
+            margin-left: 250px;
+
+            min-height: 100vh;
+
+            width: calc(100% - 250px);
+
+            padding: 28px;
+
+            overflow-x: hidden;
+        }
+
+        /* =========================
+           HEADER
+        ========================= */
+
+        .page-header {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+
+            background: #ffffff;
+
+            border: 1px solid #e2e8f0;
+
+            border-radius: 14px;
+
+            padding: 20px 24px;
+
+            margin-bottom: 20px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(15, 23, 42, 0.04);
+        }
+
+        .title-area {
+            display: flex;
+
+            align-items: center;
+
+            gap: 14px;
+
+            min-width: 0;
+        }
+
+        .title-icon {
+            width: 48px;
+            height: 48px;
+
+            flex-shrink: 0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 12px;
+
+            background: #dbeafe;
+
+            font-size: 23px;
+        }
+
+        .page-header h1 {
+            margin: 0;
+
+            font-size: 24px;
+
+            line-height: 1.2;
+
+            color: #0f172a;
+        }
+
+        .page-header p {
+            margin: 5px 0 0;
+
+            color: #64748b;
+
+            font-size: 13px;
         }
 
         .add-btn {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 11px 17px;
+
             background: #2563eb;
-            color: white;
-            padding: 10px 16px;
+
+            color: #ffffff;
+
             text-decoration: none;
-            border-radius: 5px;
+
+            border-radius: 9px;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            transition: 0.2s;
         }
 
         .add-btn:hover {
             background: #1d4ed8;
+
+            transform: translateY(-1px);
         }
 
-        .deals-table-container {
-            width: 100%;
-            overflow-x: auto;
+        /* =========================
+           SUMMARY
+        ========================= */
+
+        .summary-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 16px;
+
+            margin-bottom: 20px;
         }
+
+        .summary-card {
+            background: #ffffff;
+
+            border: 1px solid #e2e8f0;
+
+            border-radius: 12px;
+
+            padding: 18px;
+
+            box-shadow:
+                0 2px 8px
+                rgba(15, 23, 42, 0.03);
+        }
+
+        .summary-label {
+            color: #64748b;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.05em;
+        }
+
+        .summary-value {
+            margin-top: 8px;
+
+            font-size: 26px;
+
+            font-weight: 700;
+
+            color: #0f172a;
+        }
+
+        .summary-small {
+            margin-top: 5px;
+
+            color: #94a3b8;
+
+            font-size: 11px;
+        }
+
+        /* =========================
+           TOOLBAR
+        ========================= */
+
+        .toolbar {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 12px;
+
+            margin-bottom: 16px;
+        }
+
+        .toolbar-left {
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-wrapper span {
+            position: absolute;
+
+            left: 13px;
+
+            top: 11px;
+
+            color: #94a3b8;
+
+            pointer-events: none;
+        }
+
+        .search-wrapper input {
+            width: 300px;
+
+            height: 40px;
+
+            padding: 0 14px 0 37px;
+
+            border:
+                1px solid #dbe3ee;
+
+            border-radius: 9px;
+
+            outline: none;
+
+            background: #ffffff;
+
+            font-size: 13px;
+        }
+
+        .search-wrapper input:focus {
+            border-color: #2563eb;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(37, 99, 235, 0.10);
+        }
+
+        .filter-select {
+            height: 40px;
+
+            padding: 0 12px;
+
+            border:
+                1px solid #dbe3ee;
+
+            border-radius: 9px;
+
+            background: #ffffff;
+
+            color: #475569;
+
+            outline: none;
+
+            font-size: 13px;
+
+            cursor: pointer;
+        }
+
+        .export-btn {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 7px;
+
+            padding: 10px 15px;
+
+            border:
+                1px solid #dbe3ee;
+
+            border-radius: 9px;
+
+            background: #ffffff;
+
+            color: #334155;
+
+            text-decoration: none;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        .export-btn:hover {
+            background: #f8fafc;
+        }
+
+        /* =========================
+           TABLE CARD
+        ========================= */
+
+        .table-card {
+            width: 100%;
+
+            background: #ffffff;
+
+            border:
+                1px solid #e2e8f0;
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            box-shadow:
+                0 2px 8px
+                rgba(15, 23, 42, 0.04);
+        }
+
+        .table-wrap {
+            width: 100%;
+
+            overflow: hidden;
+        }
+
+        /* =========================
+           TABLE
+        ========================= */
 
         .deals-table {
             width: 100%;
-            min-width: 1100px;
+
             border-collapse: collapse;
+
             table-layout: fixed;
         }
 
-        .deals-table th,
-        .deals-table td {
-            padding: 12px 10px;
-            border-bottom: 1px solid #ddd;
+        .deals-table th {
+            padding: 15px 12px;
+
             text-align: left;
+
+            background: #f8fafc;
+
+            border-bottom:
+                1px solid #e2e8f0;
+
+            color: #475569;
+
+            font-size: 11px;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.04em;
+
+            white-space: nowrap;
+        }
+
+        .deals-table td {
+            padding: 16px 12px;
+
+            border-bottom:
+                1px solid #eef2f7;
+
+            font-size: 13px;
+
+            color: #334155;
+
             vertical-align: middle;
         }
 
-        .deals-table th {
-            background: #f1f5f9;
-            font-weight: bold;
+        .deals-table tbody tr:hover {
+            background: #f8fbff;
         }
 
-        /* ID */
-        .deals-table th:nth-child(1),
-        .deals-table td:nth-child(1) {
-            width: 4%;
+        .deals-table tbody tr:last-child td {
+            border-bottom: 0;
         }
 
-        /* Deal Title */
-        .deals-table th:nth-child(2),
-        .deals-table td:nth-child(2) {
-            width: 12%;
+        /* =========================
+           COLUMN SIZING
+           TOTAL = 100%
+        ========================= */
+
+        .sno-column {
+            width: 5%;
         }
 
-        /* Company */
-        .deals-table th:nth-child(3),
-        .deals-table td:nth-child(3) {
-            width: 9%;
+        .deal-column {
+            width: 15%;
         }
 
-        /* Contact */
-        .deals-table th:nth-child(4),
-        .deals-table td:nth-child(4) {
+        .company-column {
+            width: 10%;
+        }
+
+        .contact-column {
+            width: 10%;
+        }
+
+        .customer-column {
             width: 8%;
         }
 
-        /* Amount */
-        .deals-table th:nth-child(5),
-        .deals-table td:nth-child(5) {
-            width: 11%;
-            white-space: nowrap;
+        .amount-column {
+            width: 8%;
         }
 
-        /* Stage */
-        .deals-table th:nth-child(6),
-        .deals-table td:nth-child(6) {
+        .stage-column {
+            width: 9%;
+        }
+
+        .close-column {
             width: 10%;
         }
 
-        /* Probability */
-        .deals-table th:nth-child(7),
-        .deals-table td:nth-child(7) {
-            width: 9%;
-            white-space: nowrap;
-        }
-
-        /* Close Date */
-        .deals-table th:nth-child(8),
-        .deals-table td:nth-child(8) {
-            width: 9%;
-            white-space: nowrap;
-        }
-
-        /* Assigned To */
-        .deals-table th:nth-child(9),
-        .deals-table td:nth-child(9) {
+        .assigned-column {
             width: 10%;
-            white-space: normal;
         }
 
-        /* Action */
-        .deals-table th:nth-child(10),
-        .deals-table td:nth-child(10) {
-            width: 18%;
+        .action-column {
+            width: 15%;
+        }
+
+        /* =========================
+           DEAL
+        ========================= */
+
+        .deal-cell {
+            min-width: 0;
+        }
+
+        .deal-title {
+            color: #0f172a;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+        .deal-id {
+            margin-top: 4px;
+
+            color: #94a3b8;
+
+            font-size: 11px;
+
+            white-space: nowrap;
+        }
+
+        /* =========================
+           DATA
+        ========================= */
+
+        .serial {
+            color: #64748b;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        .secondary {
+            color: #64748b;
+        }
+
+        .data-text {
+            display: block;
+
+            color: #475569;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+        /* =========================
+           AMOUNT
+        ========================= */
+
+        .amount-text {
+            color: #0f172a;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        /* =========================
+           BADGES
+        ========================= */
+
+        .badge {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            max-width: 100%;
+
+            padding: 5px 8px;
+
+            border-radius: 999px;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+        .badge-prospecting {
+            background: #dbeafe;
+
+            color: #1d4ed8;
+        }
+
+        .badge-qualification {
+            background: #e0f2fe;
+
+            color: #0369a1;
+        }
+
+        .badge-proposal {
+            background: #fef3c7;
+
+            color: #b45309;
+        }
+
+        .badge-negotiation {
+            background: #ffedd5;
+
+            color: #c2410c;
+        }
+
+        .badge-won {
+            background: #dcfce7;
+
+            color: #15803d;
+        }
+
+        .badge-lost {
+            background: #fee2e2;
+
+            color: #b91c1c;
+        }
+
+        .badge-default {
+            background: #f1f5f9;
+
+            color: #475569;
+        }
+
+        /* =========================
+           ACTION COLUMN
+        ========================= */
+
+        .deals-table th.action-column {
+            text-align: center;
+        }
+
+        .deals-table td.action-column {
+            text-align: center;
+
+            white-space: nowrap;
+
+            overflow: visible;
+
+            padding-left: 8px;
+
+            padding-right: 8px;
         }
 
         .action-links {
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 7px;
+
             white-space: nowrap;
         }
 
         .action-links a {
             display: inline-block;
-            margin-right: 6px;
+
             text-decoration: none;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            white-space: nowrap;
+
+            flex-shrink: 0;
         }
 
-        .action-links .delete {
-            color: red;
+        .action-links span {
+            display: inline-block;
+
+            color: #cbd5e1;
+
+            font-size: 12px;
+
+            flex-shrink: 0;
         }
 
-        tr:hover {
-            background: #f8fafc;
+        .action-links a:hover {
+            text-decoration: underline;
         }
 
-        a {
+        .view-link {
             color: #2563eb;
-            text-decoration: none;
         }
 
-        .no-data {
+        .edit-link {
+            color: #059669;
+        }
+
+        .delete-link {
+            color: #dc2626;
+        }
+
+        /* =========================
+           EMPTY STATE
+        ========================= */
+
+        .empty-state {
             text-align: center;
-            padding: 30px;
-            color: #666;
+
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 42px;
+
+            margin-bottom: 10px;
+        }
+
+        .empty-state h3 {
+            margin: 0;
+
+            color: #334155;
+        }
+
+        .empty-state p {
+            margin: 8px 0 0;
+
+            color: #94a3b8;
+
+            font-size: 13px;
+        }
+
+        /* =========================
+           FOOTER
+        ========================= */
+
+        .table-footer {
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 14px 16px;
+
+            border-top:
+                1px solid #eef2f7;
+
+            color: #94a3b8;
+
+            font-size: 12px;
+        }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 1400px) {
+
+            .main-content {
+                padding: 22px;
+            }
+
+            .deals-table th {
+                padding: 13px 9px;
+
+                font-size: 10px;
+            }
+
+            .deals-table td {
+                padding: 14px 9px;
+            }
+
+            .action-links {
+                gap: 5px;
+            }
+
+            .action-links a,
+            .action-links span {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+
+            .summary-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .search-wrapper input {
+                width: 260px;
+            }
+        }
+
+        @media (max-width: 1000px) {
+
+            .main-content {
+                padding: 18px;
+            }
+
+            .deals-table th {
+                padding: 12px 7px;
+
+                font-size: 9px;
+            }
+
+            .deals-table td {
+                padding: 12px 7px;
+
+                font-size: 12px;
+            }
+
+            .action-links {
+                gap: 4px;
+            }
+
+            .action-links a,
+            .action-links span {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+
+            .main-content {
+                margin-left: 220px;
+
+                width: calc(100% - 220px);
+
+                padding: 16px;
+            }
+
+            .page-header {
+                flex-direction: column;
+
+                align-items: flex-start;
+            }
+
+            .add-btn {
+                width: 100%;
+            }
+
+            .toolbar {
+                flex-direction: column;
+
+                align-items: stretch;
+            }
+
+            .toolbar-left {
+                width: 100%;
+            }
+
+            .search-wrapper {
+                width: 100%;
+            }
+
+            .search-wrapper input {
+                width: 100%;
+            }
+
+            .filter-select {
+                width: 100%;
+            }
+
+            .export-btn {
+                width: 100%;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
     </style>
@@ -221,252 +957,709 @@ $deals = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <div class="main-content">
 
-    <div class="content-container">
+    <!-- =========================
+         PAGE HEADER
+    ========================= -->
 
-        <div class="top-bar">
+    <div class="page-header">
 
-            <h2>Deals</h2>
+        <div class="title-area">
 
-            <a
-                href="add.php"
-                class="add-btn"
-            >
-                + Add Deal
-            </a>
+            <div class="title-icon">
+                💼
+            </div>
+
+            <div>
+
+                <h1>
+                    Deals
+                </h1>
+
+                <p>
+                    Manage opportunities, stages and deal values
+                </p>
+
+            </div>
 
         </div>
 
+        <a
+            href="add.php"
+            class="add-btn"
+        >
+            + Add Deal
+        </a>
 
-        <div class="deals-table-container">
+    </div>
 
-        <table class="deals-table">
+    <!-- =========================
+         SUMMARY
+    ========================= -->
 
-            <thead>
+    <div class="summary-grid">
 
-                <tr>
+        <div class="summary-card">
 
-                    <th>ID</th>
+            <div class="summary-label">
+                Total Deals
+            </div>
 
-                    <th>Deal Title</th>
+            <div class="summary-value">
+                <?= number_format($total_deals); ?>
+            </div>
 
-                    <th>Company</th>
+            <div class="summary-small">
+                All deal records
+            </div>
 
-                    <th>Contact</th>
+        </div>
 
-                    <th>Amount</th>
+        <div class="summary-card">
 
-                    <th>Stage</th>
+            <div class="summary-label">
+                Open Deals
+            </div>
 
-                    <th>Probability</th>
+            <div class="summary-value">
+                <?= number_format($open_deals); ?>
+            </div>
 
-                    <th>Close Date</th>
+            <div class="summary-small">
+                Active opportunities
+            </div>
 
-                    <th>Assigned To</th>
+        </div>
 
-                    <th>Action</th>
+        <div class="summary-card">
 
-                </tr>
+            <div class="summary-label">
+                Closed Won
+            </div>
 
-            </thead>
+            <div class="summary-value">
+                <?= number_format($closed_won_deals); ?>
+            </div>
 
+            <div class="summary-small">
+                Successfully closed deals
+            </div>
 
-            <tbody>
+        </div>
 
-            <?php if (count($deals) > 0): ?>
+        <div class="summary-card">
 
-                <?php foreach ($deals as $deal): ?>
+            <div class="summary-label">
+                Deal Value
+            </div>
+
+            <div class="summary-value">
+                ₹<?= number_format($total_deal_value, 0); ?>
+            </div>
+
+            <div class="summary-small">
+                Total pipeline value
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =========================
+         TOOLBAR
+    ========================= -->
+
+    <div class="toolbar">
+
+        <div class="toolbar-left">
+
+            <div class="search-wrapper">
+
+                <span>
+                    🔎
+                </span>
+
+                <input
+                    type="text"
+                    id="dealSearch"
+                    placeholder="Search deals..."
+                    autocomplete="off"
+                >
+
+            </div>
+
+            <select
+                id="stageFilter"
+                class="filter-select"
+            >
+
+                <option value="">
+                    All Stages
+                </option>
+
+                <option value="prospecting">
+                    Prospecting
+                </option>
+
+                <option value="qualification">
+                    Qualification
+                </option>
+
+                <option value="proposal">
+                    Proposal
+                </option>
+
+                <option value="negotiation">
+                    Negotiation
+                </option>
+
+                <option value="closed_won">
+                    Closed Won
+                </option>
+
+                <option value="lost">
+                    Lost
+                </option>
+
+            </select>
+
+        </div>
+
+        <a
+            href="../exports/deals_csv.php"
+            class="export-btn"
+        >
+            ↓ Export CSV
+        </a>
+
+    </div>
+
+    <!-- =========================
+         TABLE
+    ========================= -->
+
+    <div class="table-card">
+
+        <div class="table-wrap">
+
+            <table
+                class="deals-table"
+                id="dealsTable"
+            >
+
+                <thead>
 
                     <tr>
 
-                        <!-- ID -->
+                        <th class="sno-column">
+                            S.No
+                        </th>
 
-                        <td>
-                            <?php echo $deal["id"]; ?>
-                        </td>
+                        <th class="deal-column">
+                            Deal
+                        </th>
 
+                        <th class="company-column">
+                            Company
+                        </th>
 
-                        <!-- Deal Title -->
+                        <th class="contact-column">
+                            Contact
+                        </th>
 
-                        <td>
+                        <th class="customer-column">
+                            Customer
+                        </th>
 
-                            <?php
+                        <th class="amount-column">
+                            Amount
+                        </th>
 
-                            echo htmlspecialchars(
-                                $deal["title"]
-                            );
+                        <th class="stage-column">
+                            Stage
+                        </th>
 
-                            ?>
+                        <th class="close-column">
+                            Close Date
+                        </th>
 
-                        </td>
+                        <th class="assigned-column">
+                            Assigned To
+                        </th>
 
+                        <th class="action-column">
+                            Action
+                        </th>
 
-                        <!-- Company -->
+                    </tr>
 
-                        <td>
+                </thead>
 
-                            <?php
+                <tbody>
 
-                            echo htmlspecialchars(
-                                $deal["company_name"] ?? "-"
-                            );
+                <?php if (count($deals) > 0): ?>
 
-                            ?>
+                    <?php foreach ($deals as $index => $deal): ?>
 
-                        </td>
+                        <?php
 
+                        $stage = strtolower(
+                            trim(
+                                $deal["stage"] ?? ""
+                            )
+                        );
 
-                        <!-- Contact -->
+                        switch ($stage) {
 
-                        <td>
+                            case "prospecting":
 
-                            <?php
+                                $stage_class =
+                                    "badge-prospecting";
 
-                            if (!empty($deal["first_name"])) {
+                                break;
 
-                                echo htmlspecialchars(
-                                    $deal["first_name"] . " " .
-                                    ($deal["last_name"] ?? "")
-                                );
+                            case "qualification":
 
-                            } else {
+                                $stage_class =
+                                    "badge-qualification";
 
-                                echo "-";
+                                break;
 
-                            }
+                            case "proposal":
 
-                            ?>
+                                $stage_class =
+                                    "badge-proposal";
 
-                        </td>
+                                break;
 
+                            case "negotiation":
 
-                        <!-- Amount -->
+                                $stage_class =
+                                    "badge-negotiation";
 
-                        <td>
+                                break;
 
-                            ₹ <?php
+                            case "closed_won":
+                            case "closed won":
+                            case "won":
+                            case "closed":
 
-                            echo number_format(
-                                (float) $deal["amount"],
-                                2
-                            );
+                                $stage_class =
+                                    "badge-won";
 
-                            ?>
+                                break;
 
-                        </td>
+                            case "lost":
+                            case "closed_lost":
+                            case "closed lost":
 
+                                $stage_class =
+                                    "badge-lost";
 
-                        <!-- Stage -->
+                                break;
 
-                        <td>
+                            default:
 
-                            <?php
+                                $stage_class =
+                                    "badge-default";
 
-                            echo htmlspecialchars(
-                                $deal["stage"]
-                            );
+                                break;
+                        }
 
-                            ?>
+                        $stage_label =
+                            $deal["stage"] ?? "Unknown";
 
-                        </td>
+                        $filter_stage = $stage;
 
+                        if (
+                            $stage === "closed won" ||
+                            $stage === "won" ||
+                            $stage === "closed"
+                        ) {
+                            $filter_stage =
+                                "closed_won";
+                        }
 
-                        <!-- Probability -->
+                        $contact_name = trim(
+                            $deal["contact_name"] ?? ""
+                        );
 
-                        <td>
+                        ?>
 
-                            <?php
+                        <tr
+                            data-stage="<?= htmlspecialchars($filter_stage); ?>"
+                        >
 
-                            echo (int) $deal["probability"];
+                            <!-- S.NO -->
 
-                            ?>%
+                            <td class="serial">
 
-                        </td>
+                                <?= $index + 1; ?>
 
+                            </td>
 
-                        <!-- Close Date -->
+                            <!-- DEAL -->
 
-                        <td>
+                            <td class="deal-cell">
 
-                            <?php
+                                <div class="deal-title">
 
-                            echo htmlspecialchars(
-                                $deal["expected_close_date"] ?? "-"
-                            );
+                                    <?= htmlspecialchars(
+                                        $deal["title"] ?? "—"
+                                    ); ?>
 
-                            ?>
+                                </div>
 
-                        </td>
+                                <div class="deal-id">
 
+                                    Deal ID:
+                                    <?= (int) $deal["id"]; ?>
 
-                        <!-- Assigned User -->
+                                </div>
 
-                        <td>
+                            </td>
 
-                            <?php
+                            <!-- COMPANY -->
 
-                            echo htmlspecialchars(
-                                $deal["assigned_user"] ?? "-"
-                            );
+                            <td class="secondary">
 
-                            ?>
+                                <?php if (
+                                    !empty(
+                                        $deal["company_name"]
+                                    )
+                                ): ?>
 
-                        </td>
+                                    <span class="data-text">
 
+                                        <?= htmlspecialchars(
+                                            $deal["company_name"]
+                                        ); ?>
 
-                        <!-- Actions -->
+                                    </span>
 
-                        <td class="action-links">
+                                <?php else: ?>
 
-                            <a href="view.php?id=<?php echo $deal["id"]; ?>">
-                                View
-                            </a>
+                                    —
 
-                            |
+                                <?php endif; ?>
 
-                            <a href="edit.php?id=<?php echo $deal["id"]; ?>">
-                                Edit
-                            </a>
+                            </td>
 
-                            |
+                            <!-- CONTACT -->
 
-                            <a
-                                href="delete.php?id=<?php echo $deal["id"]; ?>"
-                                class="delete"
-                                onclick="return confirm('Are you sure you want to delete this deal?');"
-                            >
-                                Delete
-                            </a>
+                            <td class="secondary">
+
+                                <?php if ($contact_name !== ""): ?>
+
+                                    <span class="data-text">
+
+                                        <?= htmlspecialchars(
+                                            $contact_name
+                                        ); ?>
+
+                                    </span>
+
+                                <?php else: ?>
+
+                                    —
+
+                                <?php endif; ?>
+
+                            </td>
+
+                            <!-- CUSTOMER -->
+
+                            <td class="secondary">
+
+                                <?php if (
+                                    !empty(
+                                        $deal["customer_code"]
+                                    )
+                                ): ?>
+
+                                    <span class="data-text">
+
+                                        <?= htmlspecialchars(
+                                            $deal["customer_code"]
+                                        ); ?>
+
+                                    </span>
+
+                                <?php else: ?>
+
+                                    —
+
+                                <?php endif; ?>
+
+                            </td>
+
+                            <!-- AMOUNT -->
+
+                            <td>
+
+                                <span class="amount-text">
+
+                                    ₹<?= number_format(
+                                        (float) (
+                                            $deal["amount"] ?? 0
+                                        ),
+                                        0
+                                    ); ?>
+
+                                </span>
+
+                            </td>
+
+                            <!-- STAGE -->
+
+                            <td>
+
+                                <span
+                                    class="badge <?= $stage_class; ?>"
+                                >
+                                    <?= htmlspecialchars(
+                                        $stage_label
+                                    ); ?>
+                                </span>
+
+                            </td>
+
+                            <!-- CLOSE DATE -->
+
+                            <td class="secondary">
+
+                                <?php if (
+                                    !empty(
+                                        $deal[
+                                            "expected_close_date"
+                                        ]
+                                    )
+                                ): ?>
+
+                                    <?= htmlspecialchars(
+                                        date(
+                                            "d M Y",
+                                            strtotime(
+                                                $deal[
+                                                    "expected_close_date"
+                                                ]
+                                            )
+                                        )
+                                    ); ?>
+
+                                <?php else: ?>
+
+                                    —
+
+                                <?php endif; ?>
+
+                            </td>
+
+                            <!-- ASSIGNED TO -->
+
+                            <td class="secondary">
+
+                                <?php if (
+                                    !empty(
+                                        $deal["assigned_name"]
+                                    )
+                                ): ?>
+
+                                    <span class="data-text">
+
+                                        <?= htmlspecialchars(
+                                            $deal["assigned_name"]
+                                        ); ?>
+
+                                    </span>
+
+                                <?php else: ?>
+
+                                    —
+
+                                <?php endif; ?>
+
+                            </td>
+
+                            <!-- ACTION -->
+
+                            <td class="action-column">
+
+                                <div class="action-links">
+
+                                    <a
+                                        href="view.php?id=<?= (int) $deal["id"]; ?>"
+                                        class="view-link"
+                                    >
+                                        View
+                                    </a>
+
+                                    <span>|</span>
+
+                                    <a
+                                        href="edit.php?id=<?= (int) $deal["id"]; ?>"
+                                        class="edit-link"
+                                    >
+                                        Edit
+                                    </a>
+
+                                    <span>|</span>
+
+                                    <a
+                                        href="delete.php?id=<?= (int) $deal["id"]; ?>"
+                                        class="delete-link"
+                                        onclick="
+                                            return confirm(
+                                                'Are you sure you want to delete this deal?'
+                                            );
+                                        "
+                                    >
+                                        Delete
+                                    </a>
+
+                                </div>
+
+                            </td>
+
+                        </tr>
+
+                    <?php endforeach; ?>
+
+                <?php else: ?>
+
+                    <tr>
+
+                        <td colspan="10">
+
+                            <div class="empty-state">
+
+                                <div class="empty-icon">
+                                    💼
+                                </div>
+
+                                <h3>
+                                    No deals found
+                                </h3>
+
+                                <p>
+                                    Add your first deal
+                                    to get started.
+                                </p>
+
+                            </div>
 
                         </td>
 
                     </tr>
 
-                <?php endforeach; ?>
+                <?php endif; ?>
 
-            <?php else: ?>
+                </tbody>
 
-                <tr>
+            </table>
 
-                    <td
-                        colspan="10"
-                        class="no-data"
-                    >
-                        No deals found.
-                    </td>
+        </div>
 
-                </tr>
+        <!-- =========================
+             FOOTER
+        ========================= -->
 
-            <?php endif; ?>
+        <div class="table-footer">
 
-            </tbody>
+            <span>
 
-        </table>
+                Showing
+
+                <strong>
+                    <?= count($deals); ?>
+                </strong>
+
+                deals
+
+            </span>
+
+            <span>
+                CRM Deal Management
+            </span>
 
         </div>
 
     </div>
 
 </div>
+
+<script>
+
+/* =========================
+   SEARCH + FILTER
+========================= */
+
+const dealSearch =
+    document.getElementById(
+        "dealSearch"
+    );
+
+const stageFilter =
+    document.getElementById(
+        "stageFilter"
+    );
+
+const dealRows =
+    document.querySelectorAll(
+        "#dealsTable tbody tr[data-stage]"
+    );
+
+function filterDeals() {
+
+    const searchValue =
+        dealSearch.value
+            .toLowerCase()
+            .trim();
+
+    const stageValue =
+        stageFilter.value
+            .toLowerCase()
+            .trim();
+
+    dealRows.forEach(function(row) {
+
+        const rowText =
+            row.textContent
+                .toLowerCase();
+
+        const rowStage =
+            row.dataset.stage
+                .toLowerCase();
+
+        const matchesSearch =
+            rowText.includes(
+                searchValue
+            );
+
+        const matchesStage =
+            stageValue === ""
+            ||
+            rowStage === stageValue;
+
+        row.style.display =
+            matchesSearch &&
+            matchesStage
+                ? ""
+                : "none";
+
+    });
+}
+
+dealSearch.addEventListener(
+    "input",
+    filterDeals
+);
+
+stageFilter.addEventListener(
+    "change",
+    filterDeals
+);
+
+</script>
 
 </body>
 

@@ -103,6 +103,7 @@ foreach ($customers as $customer) {
     <title>Customers Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
         /* Filter Actions */
@@ -328,11 +329,10 @@ foreach ($customers as $customer) {
 
     <!-- HEADER -->
 
-    <div class="report-header">
-
-        <h1>Customers Report</h1>
-
-    </div>
+    <?php
+    $page_title = "Customers Report";
+    include "../includes/report_header.php";
+    ?>
 
 
     <!-- DATE FILTER -->
@@ -395,6 +395,13 @@ foreach ($customers as $customer) {
                     class="btn btn-success"
                 >
                     Export Excel
+                </a>
+
+                <a
+                    href="../exports/customers_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                    class="btn btn-success"
+                >
+                    Export PDF
                 </a>
 
             </div>

@@ -84,6 +84,7 @@ foreach ($quotes as $quote) {
     <title>Quotes Report</title>
 
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
 
     <style>
         .btn-success {
@@ -245,11 +246,10 @@ foreach ($quotes as $quote) {
 
 <div class="main-content">
 
-    <div class="report-header">
-
-        <h1>Quotes Report</h1>
-
-    </div>
+    <?php
+    $page_title = "Quotes Report";
+    include "../includes/report_header.php";
+    ?>
 
     <!-- Date Filter -->
 
@@ -301,6 +301,13 @@ foreach ($quotes as $quote) {
                 class="btn btn-success"
             >
                 Export Excel
+            </a>
+
+            <a
+                href="../exports/quotes_pdf.php?from_date=<?php echo urlencode($from_date); ?>&to_date=<?php echo urlencode($to_date); ?>"
+                class="btn btn-success"
+            >
+                Export PDF
             </a>
 
         </form>

@@ -70,6 +70,7 @@ foreach ($companies as $company) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Companies Report</title>
     <link rel="stylesheet" href="/crm/assets/css/sidebar.css">
+    <link rel="stylesheet" href="/crm/assets/css/reports.css">
     <style>
         .page-header {
             margin-bottom: 25px;
@@ -221,10 +222,10 @@ foreach ($companies as $company) {
 <?php include "../includes/sidebar.php"; ?>
 
 <div class="main-content">
-    <div class="page-header">
-        <h1>Companies Report</h1>
-        <p>Company directory and registration overview</p>
-    </div>
+    <?php
+    $page_title = "Companies Report";
+    include "../includes/report_header.php";
+    ?>
 
     <div class="filter-box">
         <form method="GET" class="filter-form">
