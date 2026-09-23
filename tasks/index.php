@@ -9,133 +9,323 @@ if (!isset($_SESSION["user_id"])) {
 
 require_once "../config/database.php";
 
-/* ==============================
-   TASKS
-============================== */
+/*
+|--------------------------------------------------------------------------
+| Filters
+|--------------------------------------------------------------------------
+*/
+$search = trim($_GET["search"] ?? "");
+$status_filter = trim($_GET["status"] ?? "");
+$priority_filter = trim($_GET["priority"] ?? "");
 
-$stmt = $conn->query("
-    SELECT
-        t.id,
-        t.title,
-        t.description,
-        t.due_date,
-        t.priority,
-        t.status,
-        t.assigned_to,
-        t.contact_id,
-        t.customer_id,
-        t.deal_id,
-        t.created_at,
+/*
+|--------------------------------------------------------------------------
+| Allowed Values
+|--------------------------------------------------------------------------
+*/
+$allowed_statuses = [
+    "pending",
+    "in-progress",
+    "completed",
+    "cancelled"
+];
 
-        u.name AS assigned_name,
+$allowed_priorities = [
+    "low",
+    "medium",
+    "high",
+    "urgent"
+];
 
-        CONCAT(
-            COALESCE(ct.first_name, ''),
-            ' ',
-            COALESCE(ct.last_name, '')
-        ) AS contact_name,
+if (
+    $status_filter !== "" &&
+    !in_array($status_filter, $allowed_statuses, true)
+) {
+    $status_filter = "";
+}
 
-        cu.customer_code,
+if (
+    $priority_filter !== "" &&
+    !in_array($priority_filter, $allowed_priorities, true)
+) {
+    $priority_filter = "";
+}
 
-        d.title AS deal_title
-
-    FROM tasks t
-
-    LEFT JOIN users u
-        ON u.id = t.assigned_to
-
-    LEFT JOIN contacts ct
-        ON ct.id = t.contact_id
-
-    LEFT JOIN customers cu
-        ON cu.id = t.customer_id
-
-    LEFT JOIN deals d
-        ON d.id = t.deal_id
-
-    ORDER BY t.id DESC
+/*
+|--------------------------------------------------------------------------
+| Statistics
+|--------------------------------------------------------------------------
+*/
+$stmt = $conn->prepare("
+    SELECT COUNT(*)
+    FROM tasks
 ");
+$stmt->execute();
+$total_tasks = (int) $stmt->fetchColumn();
+
+
+$stmt = $conn->prepare("
+    SELECT COUNT(*)
+    FROM tasks
+    WHERE status = 'pending'
+");
+$stmt->execute();
+$pending_tasks = (int) $stmt->fetchColumn();
+
+
+$stmt = $conn->prepare("
+    SELECT COUNT(*)
+    FROM tasks
+    WHERE status = 'completed'
+");
+$stmt->execute();
+$completed_tasks = (int) $stmt->fetchColumn();
+
+
+$stmt = $conn->prepare("
+    SELECT COUNT(*)
+    FROM tasks
+    WHERE
+        due_date IS NOT NULL
+        AND due_date < CURDATE()
+        AND status NOT IN ('completed', 'cancelled')
+");
+$stmt->execute();
+$overdue_tasks = (int) $stmt->fetchColumn();
+
+/*
+|--------------------------------------------------------------------------
+| Load Tasks
+|--------------------------------------------------------------------------
+*/
+$sql = "
+    SELECT
+        tasks.id,
+        tasks.title,
+        tasks.description,
+        tasks.due_date,
+        tasks.priority,
+        tasks.status,
+        tasks.assigned_to,
+        tasks.contact_id,
+        tasks.customer_id,
+        tasks.deal_id,
+        tasks.created_at,
+        tasks.updated_at,
+
+        users.name AS assigned_name,
+
+        contacts.first_name,
+        contacts.last_name,
+
+        customers.customer_code,
+
+        deals.title AS deal_title
+
+    FROM tasks
+
+    LEFT JOIN users
+        ON tasks.assigned_to = users.id
+
+    LEFT JOIN contacts
+        ON tasks.contact_id = contacts.id
+
+    LEFT JOIN customers
+        ON tasks.customer_id = customers.id
+
+    LEFT JOIN deals
+        ON tasks.deal_id = deals.id
+
+    WHERE 1 = 1
+";
+
+$params = [];
+
+/*
+|--------------------------------------------------------------------------
+| Search
+|--------------------------------------------------------------------------
+*/
+if ($search !== "") {
+
+    $sql .= "
+        AND (
+            tasks.title LIKE :search
+            OR tasks.description LIKE :search
+            OR users.name LIKE :search
+            OR contacts.first_name LIKE :search
+            OR contacts.last_name LIKE :search
+            OR customers.customer_code LIKE :search
+            OR deals.title LIKE :search
+        )
+    ";
+
+    $params[":search"] = "%" . $search . "%";
+}
+
+/*
+|--------------------------------------------------------------------------
+| Status
+|--------------------------------------------------------------------------
+*/
+if ($status_filter !== "") {
+
+    $sql .= "
+        AND tasks.status = :status
+    ";
+
+    $params[":status"] = $status_filter;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Priority
+|--------------------------------------------------------------------------
+*/
+if ($priority_filter !== "") {
+
+    $sql .= "
+        AND tasks.priority = :priority
+    ";
+
+    $params[":priority"] = $priority_filter;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Sorting
+|--------------------------------------------------------------------------
+*/
+$sql .= "
+    ORDER BY
+        CASE
+            WHEN
+                tasks.due_date IS NOT NULL
+                AND tasks.due_date < CURDATE()
+                AND tasks.status NOT IN ('completed', 'cancelled')
+            THEN 0
+
+            WHEN tasks.status = 'pending'
+            THEN 1
+
+            WHEN tasks.status = 'in-progress'
+            THEN 2
+
+            WHEN tasks.status = 'completed'
+            THEN 3
+
+            ELSE 4
+        END ASC,
+
+        CASE
+            WHEN tasks.due_date IS NULL THEN 1
+            ELSE 0
+        END ASC,
+
+        tasks.due_date ASC,
+        tasks.id DESC
+";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
 
 $tasks = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-/* ==============================
-   SUMMARY
-============================== */
+/*
+|--------------------------------------------------------------------------
+| Helper Functions
+|--------------------------------------------------------------------------
+*/
+function getTaskStatusLabel($status)
+{
+    $labels = [
+        "pending" => "Pending",
+        "in-progress" => "In Progress",
+        "completed" => "Completed",
+        "cancelled" => "Cancelled"
+    ];
 
-$total_tasks = count($tasks);
+    return $labels[$status] ?? ucfirst($status);
+}
 
-$pending_tasks = 0;
-$completed_tasks = 0;
-$overdue_tasks = 0;
-$high_priority_tasks = 0;
 
-$today = date("Y-m-d");
+function getTaskPriorityLabel($priority)
+{
+    $labels = [
+        "low" => "Low",
+        "medium" => "Medium",
+        "high" => "High",
+        "urgent" => "Urgent"
+    ];
 
-foreach ($tasks as $task) {
+    return $labels[$priority] ?? ucfirst($priority);
+}
 
-    $status = strtolower(
-        trim(
-            $task["status"] ?? ""
-        )
-    );
 
-    $priority = strtolower(
-        trim(
-            $task["priority"] ?? ""
-        )
-    );
+function getTaskStatusClass($status)
+{
+    $allowed = [
+        "pending",
+        "in-progress",
+        "completed",
+        "cancelled"
+    ];
 
-    $due_date = $task["due_date"] ?? "";
-
-    /* Pending */
-
-    if (
-        $status === "pending" ||
-        $status === "open" ||
-        $status === "in progress" ||
-        $status === "in_progress"
-    ) {
-        $pending_tasks++;
+    if (!in_array($status, $allowed, true)) {
+        return "status-default";
     }
 
-    /* Completed */
+    return "status-" . $status;
+}
 
-    if (
-        $status === "completed" ||
-        $status === "complete" ||
-        $status === "done"
-    ) {
-        $completed_tasks++;
+
+function getTaskPriorityClass($priority)
+{
+    $allowed = [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+    ];
+
+    if (!in_array($priority, $allowed, true)) {
+        return "priority-default";
     }
 
-    /* Overdue */
+    return "priority-" . $priority;
+}
 
-    if (
-        !empty($due_date) &&
-        $due_date < $today &&
-        !in_array(
-            $status,
-            [
-                "completed",
-                "complete",
-                "done",
-                "cancelled",
-                "canceled"
-            ],
-            true
-        )
-    ) {
-        $overdue_tasks++;
+
+function formatTaskDate($date)
+{
+    if (empty($date)) {
+        return "-";
     }
 
-    /* High Priority */
+    $timestamp = strtotime($date);
+
+    if ($timestamp === false) {
+        return $date;
+    }
+
+    return date("d M Y", $timestamp);
+}
+
+
+function isTaskOverdue($task)
+{
+    if (empty($task["due_date"])) {
+        return false;
+    }
 
     if (
-        $priority === "high" ||
-        $priority === "urgent"
+        $task["status"] === "completed" ||
+        $task["status"] === "cancelled"
     ) {
-        $high_priority_tasks++;
+        return false;
     }
+
+    return strtotime($task["due_date"]) < strtotime(date("Y-m-d"));
 }
 
 ?>
@@ -152,7 +342,7 @@ foreach ($tasks as $task) {
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Tasks - CRM</title>
+    <title>Tasks | CRM</title>
 
     <link
         rel="stylesheet"
@@ -161,123 +351,110 @@ foreach ($tasks as $task) {
 
     <style>
 
-        /* =========================
-           GLOBAL
-        ========================= */
-
         * {
             box-sizing: border-box;
         }
 
-        html,
         body {
             margin: 0;
-            padding: 0;
-
-            font-family: Arial, sans-serif;
-
-            background: #f8fafc;
-
-            color: #0f172a;
-
-            overflow-x: hidden;
+            background: #f4f6f9;
         }
 
         .main-content {
-            margin-left: 250px;
-
-            min-height: 100vh;
-
-            width: calc(100% - 250px);
-
-            padding: 28px;
-
-            overflow-x: hidden;
+            padding: 28px 30px;
         }
 
-        /* =========================
+        .page-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        /* =========================================================
            HEADER
-        ========================= */
+        ========================================================= */
 
         .page-header {
             display: flex;
-
             align-items: center;
-
             justify-content: space-between;
-
             gap: 20px;
+
+            padding: 26px 30px;
+
+            margin-bottom: 26px;
 
             background: #ffffff;
 
             border: 1px solid #e2e8f0;
 
-            border-radius: 14px;
-
-            padding: 20px 24px;
-
-            margin-bottom: 20px;
+            border-radius: 16px;
 
             box-shadow:
-                0 2px 8px
-                rgba(15, 23, 42, 0.04);
+                0 2px 8px rgba(15, 23, 42, 0.04);
         }
 
-        .title-area {
+        .page-header-left {
             display: flex;
-
             align-items: center;
-
-            gap: 14px;
+            gap: 18px;
 
             min-width: 0;
         }
 
-        .title-icon {
-            width: 48px;
-            height: 48px;
+        .page-icon {
+            width: 64px;
+            height: 64px;
 
-            flex-shrink: 0;
+            flex: 0 0 64px;
 
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
-            border-radius: 12px;
 
             background: #dbeafe;
 
-            font-size: 23px;
+            border-radius: 15px;
+
+            font-size: 30px;
         }
 
-        .page-header h1 {
-            margin: 0;
+        .page-title {
+            min-width: 0;
+        }
 
-            font-size: 24px;
-
-            line-height: 1.2;
+        .page-title h1 {
+            margin: 0 0 5px;
 
             color: #0f172a;
+
+            font-size: 30px;
+
+            font-weight: 700;
+
+            line-height: 1.1;
         }
 
-        .page-header p {
-            margin: 5px 0 0;
+        .page-title p {
+            margin: 0;
 
             color: #64748b;
 
-            font-size: 13px;
+            font-size: 16px;
         }
 
-        .add-btn {
+        .add-button {
             display: inline-flex;
 
             align-items: center;
 
             justify-content: center;
 
-            padding: 11px 17px;
+            min-height: 50px;
+
+            padding: 0 20px;
+
+            border-radius: 11px;
 
             background: #2563eb;
 
@@ -285,208 +462,221 @@ foreach ($tasks as $task) {
 
             text-decoration: none;
 
-            border-radius: 9px;
-
-            font-size: 13px;
+            font-size: 14px;
 
             font-weight: 700;
 
             white-space: nowrap;
 
-            transition: 0.2s;
+            transition: 0.2s ease;
         }
 
-        .add-btn:hover {
+        .add-button:hover {
             background: #1d4ed8;
-
-            transform: translateY(-1px);
         }
 
-        /* =========================
-           SUMMARY
-        ========================= */
+        /* =========================================================
+           STAT CARDS
+        ========================================================= */
 
-        .summary-grid {
+        .stats-grid {
             display: grid;
 
             grid-template-columns:
-                repeat(4, 1fr);
+                repeat(4, minmax(0, 1fr));
 
-            gap: 16px;
+            gap: 20px;
 
-            margin-bottom: 20px;
+            margin-bottom: 26px;
         }
 
-        .summary-card {
+        .stat-card {
+            padding: 24px 26px;
+
             background: #ffffff;
 
             border: 1px solid #e2e8f0;
 
-            border-radius: 12px;
-
-            padding: 18px;
+            border-radius: 15px;
 
             box-shadow:
-                0 2px 8px
-                rgba(15, 23, 42, 0.03);
+                0 2px 8px rgba(15, 23, 42, 0.04);
         }
 
-        .summary-label {
+        .stat-title {
+            margin-bottom: 10px;
+
             color: #64748b;
 
-            font-size: 11px;
+            font-size: 13px;
 
             font-weight: 700;
 
             text-transform: uppercase;
 
-            letter-spacing: 0.05em;
+            letter-spacing: 0.4px;
         }
 
-        .summary-value {
-            margin-top: 8px;
-
-            font-size: 26px;
-
-            font-weight: 700;
+        .stat-number {
+            margin-bottom: 8px;
 
             color: #0f172a;
+
+            font-size: 32px;
+
+            line-height: 1;
+
+            font-weight: 700;
         }
 
-        .summary-small {
-            margin-top: 5px;
-
+        .stat-text {
             color: #94a3b8;
 
-            font-size: 11px;
+            font-size: 14px;
         }
 
-        /* =========================
+        /* =========================================================
            TOOLBAR
-        ========================= */
+        ========================================================= */
 
         .toolbar {
             display: flex;
 
             align-items: center;
 
-            justify-content: space-between;
+            gap: 14px;
 
-            gap: 12px;
-
-            margin-bottom: 16px;
+            margin-bottom: 22px;
         }
 
-        .toolbar-left {
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-
-            flex-wrap: wrap;
-        }
-
-        .search-wrapper {
+        .search-box {
             position: relative;
+
+            flex: 1;
+
+            min-width: 0;
         }
 
-        .search-wrapper span {
+        .search-icon {
             position: absolute;
 
-            left: 13px;
+            left: 17px;
 
-            top: 11px;
+            top: 50%;
 
-            color: #94a3b8;
+            transform: translateY(-50%);
+
+            font-size: 19px;
 
             pointer-events: none;
         }
 
-        .search-wrapper input {
-            width: 300px;
+        .search-box input {
+            width: 100%;
 
-            height: 40px;
+            height: 54px;
 
-            padding: 0 14px 0 37px;
+            padding:
+                0
+                15px
+                0
+                48px;
 
             border:
-                1px solid #dbe3ee;
+                1px solid #dbe3ed;
 
-            border-radius: 9px;
-
-            outline: none;
+            border-radius: 11px;
 
             background: #ffffff;
 
-            font-size: 13px;
+            color: #0f172a;
+
+            font-size: 15px;
+
+            outline: none;
         }
 
-        .search-wrapper input:focus {
+        .search-box input:focus {
             border-color: #2563eb;
 
             box-shadow:
                 0 0 0 3px
-                rgba(37, 99, 235, 0.10);
+                rgba(37, 99, 235, 0.08);
         }
 
         .filter-select {
-            height: 40px;
+            width: 145px;
 
-            padding: 0 12px;
+            height: 54px;
+
+            padding:
+                0
+                14px;
 
             border:
-                1px solid #dbe3ee;
+                1px solid #dbe3ed;
 
-            border-radius: 9px;
+            border-radius: 11px;
 
             background: #ffffff;
 
-            color: #475569;
+            color: #334155;
+
+            font-size: 14px;
 
             outline: none;
-
-            font-size: 13px;
 
             cursor: pointer;
         }
 
-        .export-btn {
+        .filter-select:focus {
+            border-color: #2563eb;
+        }
+
+        .export-button {
+            min-height: 54px;
+
+            padding:
+                0
+                18px;
+
             display: inline-flex;
 
             align-items: center;
 
             justify-content: center;
 
-            gap: 7px;
-
-            padding: 10px 15px;
-
             border:
-                1px solid #dbe3ee;
+                1px solid #dbe3ed;
 
-            border-radius: 9px;
+            border-radius: 11px;
 
             background: #ffffff;
 
-            color: #334155;
+            color: #1e3a5f;
 
             text-decoration: none;
 
-            font-size: 13px;
+            font-size: 14px;
 
             font-weight: 700;
 
             white-space: nowrap;
+
+            transition: 0.2s ease;
         }
 
-        .export-btn:hover {
-            background: #f8fafc;
+        .export-button:hover {
+            border-color: #2563eb;
+
+            color: #2563eb;
+
+            background: #f8fbff;
         }
 
-        /* =========================
+        /* =========================================================
            TABLE CARD
-        ========================= */
+        ========================================================= */
 
         .table-card {
             width: 100%;
@@ -496,24 +686,19 @@ foreach ($tasks as $task) {
             border:
                 1px solid #e2e8f0;
 
-            border-radius: 14px;
+            border-radius: 16px;
 
             overflow: hidden;
 
             box-shadow:
-                0 2px 8px
-                rgba(15, 23, 42, 0.04);
+                0 2px 8px rgba(15, 23, 42, 0.04);
         }
 
-        .table-wrap {
+        .table-wrapper {
             width: 100%;
 
             overflow: hidden;
         }
-
-        /* =========================
-           TABLE
-        ========================= */
 
         .tasks-table {
             width: 100%;
@@ -523,17 +708,23 @@ foreach ($tasks as $task) {
             table-layout: fixed;
         }
 
-        .tasks-table th {
-            padding: 15px 12px;
+        /* =========================================================
+           TABLE HEADER
+        ========================================================= */
 
-            text-align: left;
+        .tasks-table thead th {
+            height: 58px;
 
-            background: #f8fafc;
+            padding:
+                0
+                10px;
 
             border-bottom:
                 1px solid #e2e8f0;
 
-            color: #475569;
+            background: #f8fafc;
+
+            color: #334155;
 
             font-size: 11px;
 
@@ -541,22 +732,35 @@ foreach ($tasks as $task) {
 
             text-transform: uppercase;
 
-            letter-spacing: 0.04em;
+            letter-spacing: 0.25px;
+
+            text-align: left;
 
             white-space: nowrap;
+
+            overflow: hidden;
         }
 
-        .tasks-table td {
-            padding: 16px 12px;
+        /* =========================================================
+           TABLE CELLS
+        ========================================================= */
+
+        .tasks-table tbody td {
+            height: 78px;
+
+            padding:
+                10px;
 
             border-bottom:
-                1px solid #eef2f7;
-
-            font-size: 13px;
+                1px solid #edf1f5;
 
             color: #334155;
 
+            font-size: 13px;
+
             vertical-align: middle;
+
+            overflow: hidden;
         }
 
         .tasks-table tbody tr:hover {
@@ -564,122 +768,164 @@ foreach ($tasks as $task) {
         }
 
         .tasks-table tbody tr:last-child td {
-            border-bottom: 0;
+            border-bottom: none;
         }
 
-        /* =========================
-           COLUMN SIZING
-           TOTAL = 100%
-        ========================= */
+        /* =========================================================
+           COLUMN WIDTHS
+           Total = 100%
+        ========================================================= */
 
-        .sno-column {
-            width: 5%;
+        .tasks-table th:nth-child(1),
+        .tasks-table td:nth-child(1) {
+            width: 4%;
         }
 
-        .task-column {
-            width: 17%;
+        .tasks-table th:nth-child(2),
+        .tasks-table td:nth-child(2) {
+            width: 20%;
         }
 
-        .assigned-column {
+        .tasks-table th:nth-child(3),
+        .tasks-table td:nth-child(3) {
             width: 11%;
         }
 
-        .contact-column {
-            width: 11%;
-        }
-
-        .customer-column {
-            width: 9%;
-        }
-
-        .deal-column {
-            width: 9%;
-        }
-
-        .due-column {
+        .tasks-table th:nth-child(4),
+        .tasks-table td:nth-child(4) {
             width: 10%;
         }
 
-        .priority-column {
+        .tasks-table th:nth-child(5),
+        .tasks-table td:nth-child(5) {
             width: 8%;
         }
 
-        .status-column {
+        .tasks-table th:nth-child(6),
+        .tasks-table td:nth-child(6) {
             width: 9%;
         }
 
-        .action-column {
+        .tasks-table th:nth-child(7),
+        .tasks-table td:nth-child(7) {
+            width: 10%;
+        }
+
+        .tasks-table th:nth-child(8),
+        .tasks-table td:nth-child(8) {
+            width: 8%;
+        }
+
+        .tasks-table th:nth-child(9),
+        .tasks-table td:nth-child(9) {
+            width: 9%;
+        }
+
+        .tasks-table th:nth-child(10),
+        .tasks-table td:nth-child(10) {
             width: 11%;
         }
 
-        /* =========================
-           DATA
-        ========================= */
+        /* =========================================================
+           S.NO
+        ========================================================= */
 
-        .serial {
-            color: #64748b;
-
-            font-weight: 700;
-
-            white-space: nowrap;
-        }
-
-        .task-cell {
-            min-width: 0;
-        }
-
-        .task-title {
+        .serial-number {
             color: #0f172a;
 
+            font-size: 13px;
+
+            font-weight: 600;
+        }
+
+        /* =========================================================
+           TASK
+        ========================================================= */
+
+        .task-title {
+            display: block;
+
+            margin-bottom: 4px;
+
+            color: #0f172a;
+
+            font-size: 13px;
+
             font-weight: 700;
 
-            white-space: nowrap;
+            line-height: 1.35;
 
             overflow: hidden;
 
             text-overflow: ellipsis;
-        }
-
-        .task-id {
-            margin-top: 4px;
-
-            color: #94a3b8;
-
-            font-size: 11px;
 
             white-space: nowrap;
         }
 
-        .secondary {
-            color: #64748b;
+        .task-id {
+            color: #94a3b8;
+
+            font-size: 11px;
         }
+
+        /* =========================================================
+           TRUNCATED DATA
+        ========================================================= */
 
         .data-text {
             display: block;
 
-            color: #475569;
-
-            white-space: nowrap;
+            width: 100%;
 
             overflow: hidden;
 
             text-overflow: ellipsis;
+
+            white-space: nowrap;
+
+            color: #475569;
         }
 
-        /* =========================
-           PRIORITY
-        ========================= */
+        .data-empty {
+            color: #94a3b8;
+        }
 
-        .priority-badge {
+        /* =========================================================
+           DATE
+        ========================================================= */
+
+        .due-date {
+            display: block;
+
+            color: #334155;
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            white-space: nowrap;
+        }
+
+        .due-date.overdue {
+            color: #dc2626;
+
+            font-weight: 700;
+        }
+
+        /* =========================================================
+           BADGES
+        ========================================================= */
+
+        .badge {
             display: inline-flex;
 
             align-items: center;
 
             justify-content: center;
 
-            max-width: 100%;
-
-            padding: 5px 9px;
+            padding:
+                6px
+                9px;
 
             border-radius: 999px;
 
@@ -687,17 +933,45 @@ foreach ($tasks as $task) {
 
             font-weight: 700;
 
+            line-height: 1;
+
             white-space: nowrap;
+        }
 
-            overflow: hidden;
+        .status-pending {
+            background: #fef3c7;
 
-            text-overflow: ellipsis;
+            color: #92400e;
+        }
+
+        .status-in-progress {
+            background: #dbeafe;
+
+            color: #1e40af;
+        }
+
+        .status-completed {
+            background: #dcfce7;
+
+            color: #166534;
+        }
+
+        .status-cancelled {
+            background: #fee2e2;
+
+            color: #991b1b;
+        }
+
+        .status-default {
+            background: #f1f5f9;
+
+            color: #475569;
         }
 
         .priority-low {
             background: #dcfce7;
 
-            color: #15803d;
+            color: #166534;
         }
 
         .priority-medium {
@@ -709,7 +983,7 @@ foreach ($tasks as $task) {
         .priority-high {
             background: #fef3c7;
 
-            color: #b45309;
+            color: #92400e;
         }
 
         .priority-urgent {
@@ -724,187 +998,88 @@ foreach ($tasks as $task) {
             color: #475569;
         }
 
-        /* =========================
-           STATUS
-        ========================= */
+        /* =========================================================
+           ACTION COLUMN
+        ========================================================= */
 
-        .status-badge {
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            max-width: 100%;
-
-            padding: 5px 9px;
-
-            border-radius: 999px;
-
-            font-size: 10px;
-
-            font-weight: 700;
-
-            white-space: nowrap;
-
-            overflow: hidden;
-
-            text-overflow: ellipsis;
-        }
-
-        .status-pending {
-            background: #fef3c7;
-
-            color: #b45309;
-        }
-
-        .status-progress {
-            background: #dbeafe;
-
-            color: #1d4ed8;
-        }
-
-        .status-completed {
-            background: #dcfce7;
-
-            color: #15803d;
-        }
-
-        .status-cancelled {
-            background: #fee2e2;
-
-            color: #b91c1c;
-        }
-
-        .status-default {
-            background: #f1f5f9;
-
-            color: #475569;
-        }
-
-        /* =========================
-           DUE DATE
-        ========================= */
-
-        .due-date {
-            white-space: nowrap;
-
-            color: #475569;
-
-            font-size: 12px;
-        }
-
-        .due-overdue {
-            color: #dc2626;
-
-            font-weight: 700;
-        }
-
-        /* =========================
-           ACTION
-        ========================= */
-
-        .tasks-table th.action-column {
-            text-align: center;
-        }
-
+        .tasks-table th.action-column,
         .tasks-table td.action-column {
             text-align: center;
 
             white-space: nowrap;
 
             overflow: visible;
-
-            padding-left: 6px;
-
-            padding-right: 6px;
         }
 
-        .action-links {
+        .action-buttons {
             display: inline-flex;
 
             align-items: center;
 
             justify-content: center;
 
-            gap: 6px;
+            gap: 5px;
 
             white-space: nowrap;
         }
 
-        .action-links a {
+        .action-buttons a {
             display: inline-block;
+
+            margin: 0;
+
+            padding: 0;
+
+            border: none;
+
+            background: transparent;
 
             text-decoration: none;
 
-            font-size: 12px;
+            font-size: 11px;
 
             font-weight: 700;
 
+            line-height: 1;
+
             white-space: nowrap;
-
-            flex-shrink: 0;
         }
 
-        .action-links span {
-            display: inline-block;
-
-            color: #cbd5e1;
-
-            font-size: 12px;
-
-            flex-shrink: 0;
-        }
-
-        .action-links a:hover {
-            text-decoration: underline;
-        }
-
-        .view-link {
+        .action-view {
             color: #2563eb;
         }
 
-        .edit-link {
+        .action-view:hover {
+            color: #1d4ed8;
+        }
+
+        .action-edit {
             color: #059669;
         }
 
-        .delete-link {
+        .action-edit:hover {
+            color: #047857;
+        }
+
+        .action-delete {
             color: #dc2626;
         }
 
-        /* =========================
-           EMPTY STATE
-        ========================= */
-
-        .empty-state {
-            text-align: center;
-
-            padding: 60px 20px;
+        .action-delete:hover {
+            color: #b91c1c;
         }
 
-        .empty-icon {
-            font-size: 42px;
+        .action-separator {
+            color: #cbd5e1;
 
-            margin-bottom: 10px;
+            font-size: 11px;
+
+            line-height: 1;
         }
 
-        .empty-state h3 {
-            margin: 0;
-
-            color: #334155;
-        }
-
-        .empty-state p {
-            margin: 8px 0 0;
-
-            color: #94a3b8;
-
-            font-size: 13px;
-        }
-
-        /* =========================
+        /* =========================================================
            FOOTER
-        ========================= */
+        ========================================================= */
 
         .table-footer {
             display: flex;
@@ -913,135 +1088,237 @@ foreach ($tasks as $task) {
 
             justify-content: space-between;
 
-            padding: 14px 16px;
+            min-height: 56px;
+
+            padding:
+                0
+                22px;
 
             border-top:
-                1px solid #eef2f7;
+                1px solid #edf1f5;
 
             color: #94a3b8;
 
-            font-size: 12px;
+            font-size: 13px;
         }
 
-        /* =========================
+        /* =========================================================
+           EMPTY STATE
+        ========================================================= */
+
+        .empty-state {
+            padding:
+                55px
+                20px;
+
+            text-align: center;
+        }
+
+        .empty-icon {
+            margin-bottom: 10px;
+
+            font-size: 36px;
+        }
+
+        .empty-state h3 {
+            margin:
+                0
+                0
+                6px;
+
+            color: #334155;
+
+            font-size: 17px;
+        }
+
+        .empty-state p {
+            margin: 0;
+
+            color: #94a3b8;
+
+            font-size: 13px;
+        }
+
+        /* =========================================================
+           DARK MODE
+        ========================================================= */
+
+        html.dark-mode body {
+            background: #0f172a;
+        }
+
+        html.dark-mode .page-header,
+        html.dark-mode .stat-card,
+        html.dark-mode .table-card {
+            background: #111827;
+
+            border-color: #1f2937;
+
+            box-shadow: none;
+        }
+
+        html.dark-mode .page-title h1,
+        html.dark-mode .stat-number,
+        html.dark-mode .task-title,
+        html.dark-mode .serial-number,
+        html.dark-mode .empty-state h3 {
+            color: #f8fafc;
+        }
+
+        html.dark-mode .page-title p,
+        html.dark-mode .stat-title,
+        html.dark-mode .stat-text,
+        html.dark-mode .task-id,
+        html.dark-mode .data-empty,
+        html.dark-mode .table-footer {
+            color: #94a3b8;
+        }
+
+        html.dark-mode .search-box input,
+        html.dark-mode .filter-select,
+        html.dark-mode .export-button {
+            background: #111827;
+
+            border-color: #334155;
+
+            color: #e2e8f0;
+        }
+
+        html.dark-mode .search-box input::placeholder {
+            color: #64748b;
+        }
+
+        html.dark-mode .export-button:hover {
+            background: #172033;
+
+            border-color: #60a5fa;
+
+            color: #60a5fa;
+        }
+
+        html.dark-mode .tasks-table thead th {
+            background: #0f172a;
+
+            border-color: #1f2937;
+
+            color: #cbd5e1;
+        }
+
+        html.dark-mode .tasks-table tbody td {
+            border-color: #1f2937;
+
+            color: #cbd5e1;
+        }
+
+        html.dark-mode .tasks-table tbody tr:hover {
+            background: #172033;
+        }
+
+        html.dark-mode .data-text,
+        html.dark-mode .due-date {
+            color: #cbd5e1;
+        }
+
+        html.dark-mode .action-separator {
+            color: #475569;
+        }
+
+        /* =========================================================
            RESPONSIVE
-        ========================= */
-
-        @media (max-width: 1400px) {
-
-            .main-content {
-                padding: 22px;
-            }
-
-            .tasks-table th {
-                padding: 13px 9px;
-
-                font-size: 10px;
-            }
-
-            .tasks-table td {
-                padding: 14px 9px;
-            }
-
-            .action-links {
-                gap: 5px;
-            }
-
-            .action-links a,
-            .action-links span {
-                font-size: 11px;
-            }
-        }
+        ========================================================= */
 
         @media (max-width: 1200px) {
 
-            .summary-grid {
-                grid-template-columns:
-                    repeat(2, 1fr);
+            .main-content {
+                padding: 24px;
             }
 
-            .search-wrapper input {
-                width: 260px;
+            .tasks-table thead th {
+                font-size: 10px;
             }
+
+            .tasks-table tbody td {
+                padding: 9px 7px;
+                font-size: 12px;
+            }
+
+            .task-title {
+                font-size: 12px;
+            }
+
+            .action-buttons a {
+                font-size: 10px;
+            }
+
+            .action-buttons {
+                gap: 4px;
+            }
+
         }
 
         @media (max-width: 1000px) {
+
+            .stats-grid {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
+
+            .toolbar {
+                flex-wrap: wrap;
+            }
+
+            .search-box {
+                flex-basis: 100%;
+            }
+
+        }
+
+        @media (max-width: 700px) {
 
             .main-content {
                 padding: 18px;
             }
 
-            .tasks-table th {
-                padding: 12px 7px;
-
-                font-size: 9px;
-            }
-
-            .tasks-table td {
-                padding: 12px 7px;
-
-                font-size: 12px;
-            }
-
-            .action-links {
-                gap: 4px;
-            }
-
-            .action-links a,
-            .action-links span {
-                font-size: 10px;
-            }
-        }
-
-        @media (max-width: 768px) {
-
-            .main-content {
-                margin-left: 220px;
-
-                width: calc(100% - 220px);
-
-                padding: 16px;
-            }
-
             .page-header {
                 flex-direction: column;
+                align-items: stretch;
+            }
 
+            .page-header-left {
                 align-items: flex-start;
             }
 
-            .add-btn {
+            .add-button {
                 width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
 
             .toolbar {
                 flex-direction: column;
-
                 align-items: stretch;
             }
 
-            .toolbar-left {
+            .search-box,
+            .filter-select,
+            .export-button {
                 width: 100%;
             }
 
-            .search-wrapper {
-                width: 100%;
+            /*
+             * Only smaller screens use horizontal scrolling.
+             * Desktop/tablet remains fully fitted.
+             */
+            .table-wrapper {
+                overflow-x: auto;
             }
 
-            .search-wrapper input {
-                width: 100%;
+            .tasks-table {
+                min-width: 1100px;
             }
 
-            .filter-select {
-                width: 100%;
-            }
-
-            .export-btn {
-                width: 100%;
-            }
-
-            .summary-grid {
-                grid-template-columns: 1fr;
-            }
         }
 
     </style>
@@ -1054,843 +1331,716 @@ foreach ($tasks as $task) {
 
 <div class="main-content">
 
-    <!-- =========================
-         PAGE HEADER
-    ========================= -->
+    <div class="page-container">
 
-    <div class="page-header">
+        <!-- =====================================================
+             PAGE HEADER
+        ====================================================== -->
 
-        <div class="title-area">
+        <div class="page-header">
 
-            <div class="title-icon">
-                ✅
+            <div class="page-header-left">
+
+                <div class="page-icon">
+                    ✅
+                </div>
+
+                <div class="page-title">
+
+                    <h1>
+                        Tasks
+                    </h1>
+
+                    <p>
+                        Manage tasks, priorities, assignments and due dates
+                    </p>
+
+                </div>
+
             </div>
 
-            <div>
+            <a
+                href="add.php"
+                class="add-button"
+            >
+                + Add Task
+            </a>
 
-                <h1>
-                    Tasks
-                </h1>
+        </div>
 
-                <p>
-                    Manage tasks, priorities, assignments and due dates
-                </p>
+
+        <!-- =====================================================
+             STATISTICS
+        ====================================================== -->
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Total Tasks
+                </div>
+
+                <div class="stat-number">
+                    <?php echo $total_tasks; ?>
+                </div>
+
+                <div class="stat-text">
+                    All task records
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Pending Tasks
+                </div>
+
+                <div class="stat-number">
+                    <?php echo $pending_tasks; ?>
+                </div>
+
+                <div class="stat-text">
+                    Tasks requiring action
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Completed
+                </div>
+
+                <div class="stat-number">
+                    <?php echo $completed_tasks; ?>
+                </div>
+
+                <div class="stat-text">
+                    Successfully completed
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Overdue
+                </div>
+
+                <div class="stat-number">
+                    <?php echo $overdue_tasks; ?>
+                </div>
+
+                <div class="stat-text">
+                    Tasks past due date
+                </div>
 
             </div>
 
         </div>
 
-        <a
-            href="add.php"
-            class="add-btn"
+
+        <!-- =====================================================
+             TOOLBAR
+        ====================================================== -->
+
+        <form
+            method="GET"
+            class="toolbar"
         >
-            + Add Task
-        </a>
 
-    </div>
+            <div class="search-box">
 
-    <!-- =========================
-         SUMMARY
-    ========================= -->
-
-    <div class="summary-grid">
-
-        <div class="summary-card">
-
-            <div class="summary-label">
-                Total Tasks
-            </div>
-
-            <div class="summary-value">
-                <?= number_format($total_tasks); ?>
-            </div>
-
-            <div class="summary-small">
-                All task records
-            </div>
-
-        </div>
-
-        <div class="summary-card">
-
-            <div class="summary-label">
-                Pending Tasks
-            </div>
-
-            <div class="summary-value">
-                <?= number_format($pending_tasks); ?>
-            </div>
-
-            <div class="summary-small">
-                Tasks requiring action
-            </div>
-
-        </div>
-
-        <div class="summary-card">
-
-            <div class="summary-label">
-                Completed
-            </div>
-
-            <div class="summary-value">
-                <?= number_format($completed_tasks); ?>
-            </div>
-
-            <div class="summary-small">
-                Successfully completed
-            </div>
-
-        </div>
-
-        <div class="summary-card">
-
-            <div class="summary-label">
-                Overdue
-            </div>
-
-            <div class="summary-value">
-                <?= number_format($overdue_tasks); ?>
-            </div>
-
-            <div class="summary-small">
-                Tasks past due date
-            </div>
-
-        </div>
-
-    </div>
-
-    <!-- =========================
-         TOOLBAR
-    ========================= -->
-
-    <div class="toolbar">
-
-        <div class="toolbar-left">
-
-            <div class="search-wrapper">
-
-                <span>
+                <span class="search-icon">
                     🔎
                 </span>
 
                 <input
                     type="text"
-                    id="taskSearch"
+                    name="search"
+                    value="<?php echo htmlspecialchars($search); ?>"
                     placeholder="Search tasks..."
-                    autocomplete="off"
                 >
 
             </div>
 
+
             <select
-                id="statusFilter"
+                name="status"
                 class="filter-select"
+                onchange="this.form.submit()"
             >
 
                 <option value="">
                     All Status
                 </option>
 
-                <option value="pending">
+                <option
+                    value="pending"
+                    <?php
+                    echo $status_filter === "pending"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Pending
                 </option>
 
-                <option value="in_progress">
+                <option
+                    value="in-progress"
+                    <?php
+                    echo $status_filter === "in-progress"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     In Progress
                 </option>
 
-                <option value="completed">
+                <option
+                    value="completed"
+                    <?php
+                    echo $status_filter === "completed"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Completed
                 </option>
 
-                <option value="cancelled">
+                <option
+                    value="cancelled"
+                    <?php
+                    echo $status_filter === "cancelled"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Cancelled
                 </option>
 
             </select>
 
+
             <select
-                id="priorityFilter"
+                name="priority"
                 class="filter-select"
+                onchange="this.form.submit()"
             >
 
                 <option value="">
                     All Priority
                 </option>
 
-                <option value="low">
+                <option
+                    value="low"
+                    <?php
+                    echo $priority_filter === "low"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Low
                 </option>
 
-                <option value="medium">
+                <option
+                    value="medium"
+                    <?php
+                    echo $priority_filter === "medium"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Medium
                 </option>
 
-                <option value="high">
+                <option
+                    value="high"
+                    <?php
+                    echo $priority_filter === "high"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     High
                 </option>
 
-                <option value="urgent">
+                <option
+                    value="urgent"
+                    <?php
+                    echo $priority_filter === "urgent"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
                     Urgent
                 </option>
 
             </select>
 
-        </div>
 
-        <a
-            href="../exports/tasks_csv.php"
-            class="export-btn"
-        >
-            ↓ Export CSV
-        </a>
-
-    </div>
-
-    <!-- =========================
-         TABLE
-    ========================= -->
-
-    <div class="table-card">
-
-        <div class="table-wrap">
-
-            <table
-                class="tasks-table"
-                id="tasksTable"
+            <a
+                href="export_csv.php"
+                class="export-button"
             >
+                ↓ Export CSV
+            </a>
 
-                <thead>
+        </form>
 
-                    <tr>
 
-                        <th class="sno-column">
-                            S.No
-                        </th>
+        <!-- =====================================================
+             TABLE
+        ====================================================== -->
 
-                        <th class="task-column">
-                            Task
-                        </th>
+        <div class="table-card">
 
-                        <th class="assigned-column">
-                            Assigned To
-                        </th>
+            <div class="table-wrapper">
 
-                        <th class="contact-column">
-                            Contact
-                        </th>
+                <?php if (!empty($tasks)): ?>
 
-                        <th class="customer-column">
-                            Customer
-                        </th>
+                    <table class="tasks-table">
 
-                        <th class="deal-column">
-                            Deal
-                        </th>
+                        <thead>
 
-                        <th class="due-column">
-                            Due Date
-                        </th>
+                            <tr>
 
-                        <th class="priority-column">
-                            Priority
-                        </th>
+                                <th>
+                                    S.NO
+                                </th>
 
-                        <th class="status-column">
-                            Status
-                        </th>
+                                <th>
+                                    TASK
+                                </th>
 
-                        <th class="action-column">
-                            Action
-                        </th>
+                                <th>
+                                    ASSIGNED TO
+                                </th>
 
-                    </tr>
+                                <th>
+                                    CONTACT
+                                </th>
 
-                </thead>
+                                <th>
+                                    CUSTOMER
+                                </th>
 
-                <tbody>
+                                <th>
+                                    DEAL
+                                </th>
 
-                <?php if (count($tasks) > 0): ?>
+                                <th>
+                                    DUE DATE
+                                </th>
 
-                    <?php foreach (
-                        $tasks
-                        as $index => $task
-                    ): ?>
+                                <th>
+                                    PRIORITY
+                                </th>
 
-                        <?php
+                                <th>
+                                    STATUS
+                                </th>
 
-                        $status =
-                            strtolower(
-                                trim(
-                                    $task["status"] ?? ""
-                                )
-                            );
+                                <th class="action-column">
+                                    ACTION
+                                </th>
 
-                        $priority =
-                            strtolower(
-                                trim(
-                                    $task["priority"] ?? ""
-                                )
-                            );
+                            </tr>
 
-                        /* Status */
+                        </thead>
 
-                        switch ($status) {
+                        <tbody>
 
-                            case "pending":
-                            case "open":
+                            <?php
 
-                                $status_class =
-                                    "status-pending";
+                            $serial = 1;
 
-                                break;
+                            foreach ($tasks as $task):
 
-                            case "in_progress":
-                            case "in progress":
-                            case "processing":
+                                $contact_name = trim(
+                                    ($task["first_name"] ?? "") .
+                                    " " .
+                                    ($task["last_name"] ?? "")
+                                );
 
-                                $status_class =
-                                    "status-progress";
+                                $is_overdue = isTaskOverdue($task);
 
-                                break;
+                            ?>
 
-                            case "completed":
-                            case "complete":
-                            case "done":
+                                <tr>
 
-                                $status_class =
-                                    "status-completed";
+                                    <!-- S.NO -->
 
-                                break;
+                                    <td>
 
-                            case "cancelled":
-                            case "canceled":
+                                        <span class="serial-number">
 
-                                $status_class =
-                                    "status-cancelled";
-
-                                break;
-
-                            default:
-
-                                $status_class =
-                                    "status-default";
-
-                                break;
-                        }
-
-                        /* Priority */
-
-                        switch ($priority) {
-
-                            case "low":
-
-                                $priority_class =
-                                    "priority-low";
-
-                                break;
-
-                            case "medium":
-
-                                $priority_class =
-                                    "priority-medium";
-
-                                break;
-
-                            case "high":
-
-                                $priority_class =
-                                    "priority-high";
-
-                                break;
-
-                            case "urgent":
-
-                                $priority_class =
-                                    "priority-urgent";
-
-                                break;
-
-                            default:
-
-                                $priority_class =
-                                    "priority-default";
-
-                                break;
-                        }
-
-                        $contact_name =
-                            trim(
-                                $task["contact_name"] ?? ""
-                            );
-
-                        $is_overdue = false;
-
-                        if (
-                            !empty(
-                                $task["due_date"]
-                            ) &&
-                            $task["due_date"] < $today &&
-                            !in_array(
-                                $status,
-                                [
-                                    "completed",
-                                    "complete",
-                                    "done",
-                                    "cancelled",
-                                    "canceled"
-                                ],
-                                true
-                            )
-                        ) {
-                            $is_overdue = true;
-                        }
-
-                        ?>
-
-                        <tr
-                            data-status="<?= htmlspecialchars($status); ?>"
-                            data-priority="<?= htmlspecialchars($priority); ?>"
-                        >
-
-                            <!-- S.NO -->
-
-                            <td class="serial">
-
-                                <?= $index + 1; ?>
-
-                            </td>
-
-                            <!-- TASK -->
-
-                            <td class="task-cell">
-
-                                <div class="task-title">
-
-                                    <?= htmlspecialchars(
-                                        $task["title"] ?? "—"
-                                    ); ?>
-
-                                </div>
-
-                                <div class="task-id">
-
-                                    Task ID:
-                                    <?= (int) $task["id"]; ?>
-
-                                </div>
-
-                            </td>
-
-                            <!-- ASSIGNED -->
-
-                            <td class="secondary">
-
-                                <?php if (
-                                    !empty(
-                                        $task["assigned_name"]
-                                    )
-                                ): ?>
-
-                                    <span class="data-text">
-
-                                        <?= htmlspecialchars(
-                                            $task[
-                                                "assigned_name"
-                                            ]
-                                        ); ?>
-
-                                    </span>
-
-                                <?php else: ?>
-
-                                    —
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <!-- CONTACT -->
-
-                            <td class="secondary">
-
-                                <?php if (
-                                    $contact_name !== ""
-                                ): ?>
-
-                                    <span class="data-text">
-
-                                        <?= htmlspecialchars(
-                                            $contact_name
-                                        ); ?>
-
-                                    </span>
-
-                                <?php else: ?>
-
-                                    —
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <!-- CUSTOMER -->
-
-                            <td class="secondary">
-
-                                <?php if (
-                                    !empty(
-                                        $task[
-                                            "customer_code"
-                                        ]
-                                    )
-                                ): ?>
-
-                                    <span class="data-text">
-
-                                        <?= htmlspecialchars(
-                                            $task[
-                                                "customer_code"
-                                            ]
-                                        ); ?>
-
-                                    </span>
-
-                                <?php else: ?>
-
-                                    —
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <!-- DEAL -->
-
-                            <td class="secondary">
-
-                                <?php if (
-                                    !empty(
-                                        $task["deal_title"]
-                                    )
-                                ): ?>
-
-                                    <span class="data-text">
-
-                                        <?= htmlspecialchars(
-                                            $task[
-                                                "deal_title"
-                                            ]
-                                        ); ?>
-
-                                    </span>
-
-                                <?php else: ?>
-
-                                    —
-
-                                <?php endif; ?>
-
-                            </td>
-
-                            <!-- DUE DATE -->
-
-                            <td>
-
-                                <?php if (
-                                    !empty(
-                                        $task["due_date"]
-                                    )
-                                ): ?>
-
-                                    <span
-                                        class="
-                                            due-date
-                                            <?= $is_overdue
-                                                ? 'due-overdue'
-                                                : '';
+                                            <?php
+                                            echo $serial;
+                                            $serial++;
                                             ?>
-                                        "
-                                    >
 
-                                        <?= htmlspecialchars(
-                                            date(
-                                                "d M Y",
-                                                strtotime(
-                                                    $task[
-                                                        "due_date"
-                                                    ]
-                                                )
-                                            )
-                                        ); ?>
+                                        </span>
 
-                                    </span>
+                                    </td>
 
-                                <?php else: ?>
 
-                                    —
+                                    <!-- TASK -->
 
-                                <?php endif; ?>
+                                    <td>
 
-                            </td>
-
-                            <!-- PRIORITY -->
-
-                            <td>
-
-                                <span
-                                    class="
-                                        priority-badge
-                                        <?= $priority_class; ?>
-                                    "
-                                >
-                                    <?= htmlspecialchars(
-                                        $task[
-                                            "priority"
-                                        ] ?? "Unknown"
-                                    ); ?>
-                                </span>
-
-                            </td>
-
-                            <!-- STATUS -->
-
-                            <td>
-
-                                <span
-                                    class="
-                                        status-badge
-                                        <?= $status_class; ?>
-                                    "
-                                >
-                                    <?= htmlspecialchars(
-                                        $task[
-                                            "status"
-                                        ] ?? "Unknown"
-                                    ); ?>
-                                </span>
-
-                            </td>
-
-                            <!-- ACTION -->
-
-                            <td class="action-column">
-
-                                <div class="action-links">
-
-                                    <a
-                                        href="view.php?id=<?= (int) $task["id"]; ?>"
-                                        class="view-link"
-                                    >
-                                        View
-                                    </a>
-
-                                    <span>|</span>
-
-                                    <a
-                                        href="edit.php?id=<?= (int) $task["id"]; ?>"
-                                        class="edit-link"
-                                    >
-                                        Edit
-                                    </a>
-
-                                    <span>|</span>
-
-                                    <a
-                                        href="delete.php?id=<?= (int) $task["id"]; ?>"
-                                        class="delete-link"
-                                        onclick="
-                                            return confirm(
-                                                'Are you sure you want to delete this task?'
+                                        <span
+                                            class="task-title"
+                                            title="<?php
+                                            echo htmlspecialchars(
+                                                $task["title"] ?? ""
                                             );
-                                        "
-                                    >
-                                        Delete
-                                    </a>
+                                            ?>"
+                                        >
 
-                                </div>
+                                            <?php
+                                            echo htmlspecialchars(
+                                                $task["title"] ?? "-"
+                                            );
+                                            ?>
 
-                            </td>
+                                        </span>
 
-                        </tr>
+                                        <span class="task-id">
 
-                    <?php endforeach; ?>
+                                            Task ID:
+                                            <?php
+                                            echo (int) $task["id"];
+                                            ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- ASSIGNED -->
+
+                                    <td>
+
+                                        <?php if (!empty($task["assigned_name"])): ?>
+
+                                            <span
+                                                class="data-text"
+                                                title="<?php
+                                                echo htmlspecialchars(
+                                                    $task["assigned_name"]
+                                                );
+                                                ?>"
+                                            >
+
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    $task["assigned_name"]
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="data-empty">
+                                                -
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- CONTACT -->
+
+                                    <td>
+
+                                        <?php if ($contact_name !== ""): ?>
+
+                                            <span
+                                                class="data-text"
+                                                title="<?php
+                                                echo htmlspecialchars(
+                                                    $contact_name
+                                                );
+                                                ?>"
+                                            >
+
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    $contact_name
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="data-empty">
+                                                -
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- CUSTOMER -->
+
+                                    <td>
+
+                                        <?php if (!empty($task["customer_code"])): ?>
+
+                                            <span class="data-text">
+
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    $task["customer_code"]
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="data-empty">
+                                                -
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- DEAL -->
+
+                                    <td>
+
+                                        <?php if (!empty($task["deal_title"])): ?>
+
+                                            <span
+                                                class="data-text"
+                                                title="<?php
+                                                echo htmlspecialchars(
+                                                    $task["deal_title"]
+                                                );
+                                                ?>"
+                                            >
+
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    $task["deal_title"]
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="data-empty">
+                                                -
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- DUE DATE -->
+
+                                    <td>
+
+                                        <?php if (!empty($task["due_date"])): ?>
+
+                                            <span
+                                                class="due-date <?php
+                                                echo $is_overdue
+                                                    ? "overdue"
+                                                    : "";
+                                                ?>"
+                                            >
+
+                                                <?php
+                                                echo htmlspecialchars(
+                                                    formatTaskDate(
+                                                        $task["due_date"]
+                                                    )
+                                                );
+                                                ?>
+
+                                            </span>
+
+                                        <?php else: ?>
+
+                                            <span class="data-empty">
+                                                -
+                                            </span>
+
+                                        <?php endif; ?>
+
+                                    </td>
+
+
+                                    <!-- PRIORITY -->
+
+                                    <td>
+
+                                        <span
+                                            class="badge <?php
+                                            echo htmlspecialchars(
+                                                getTaskPriorityClass(
+                                                    $task["priority"] ?? ""
+                                                )
+                                            );
+                                            ?>"
+                                        >
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                getTaskPriorityLabel(
+                                                    $task["priority"] ?? ""
+                                                )
+                                            );
+                                            ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- STATUS -->
+
+                                    <td>
+
+                                        <span
+                                            class="badge <?php
+                                            echo htmlspecialchars(
+                                                getTaskStatusClass(
+                                                    $task["status"] ?? ""
+                                                )
+                                            );
+                                            ?>"
+                                        >
+
+                                            <?php
+                                            echo htmlspecialchars(
+                                                getTaskStatusLabel(
+                                                    $task["status"] ?? ""
+                                                )
+                                            );
+                                            ?>
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <!-- ACTION -->
+
+                                    <td class="action-column">
+
+                                        <div class="action-buttons">
+
+                                            <a
+                                                href="view.php?id=<?php
+                                                echo (int) $task["id"];
+                                                ?>"
+                                                class="action-view"
+                                            >
+                                                View
+                                            </a>
+
+                                            <span class="action-separator">
+                                                |
+                                            </span>
+
+                                            <a
+                                                href="edit.php?id=<?php
+                                                echo (int) $task["id"];
+                                                ?>"
+                                                class="action-edit"
+                                            >
+                                                Edit
+                                            </a>
+
+                                            <span class="action-separator">
+                                                |
+                                            </span>
+
+                                            <a
+                                                href="delete.php?id=<?php
+                                                echo (int) $task["id"];
+                                                ?>"
+                                                class="action-delete"
+                                                onclick="return confirm('Are you sure you want to delete this task?');"
+                                            >
+                                                Delete
+                                            </a>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            <?php endforeach; ?>
+
+                        </tbody>
+
+                    </table>
 
                 <?php else: ?>
 
-                    <tr>
+                    <div class="empty-state">
 
-                        <td colspan="10">
+                        <div class="empty-icon">
+                            ✅
+                        </div>
 
-                            <div class="empty-state">
+                        <h3>
+                            No tasks found
+                        </h3>
 
-                                <div class="empty-icon">
-                                    ✅
-                                </div>
+                        <p>
+                            Try changing your search or filters, or create a new task.
+                        </p>
 
-                                <h3>
-                                    No tasks found
-                                </h3>
-
-                                <p>
-                                    Add your first task
-                                    to get started.
-                                </p>
-
-                            </div>
-
-                        </td>
-
-                    </tr>
+                    </div>
 
                 <?php endif; ?>
 
-                </tbody>
+            </div>
 
-            </table>
 
-        </div>
+            <!-- =================================================
+                 FOOTER
+            ================================================== -->
 
-        <!-- =========================
-             FOOTER
-        ========================= -->
+            <div class="table-footer">
 
-        <div class="table-footer">
+                <span>
+                    Showing
+                    <?php echo count($tasks); ?>
+                    task<?php echo count($tasks) === 1 ? "" : "s"; ?>
+                </span>
 
-            <span>
+                <span>
+                    CRM Task Management
+                </span>
 
-                Showing
-
-                <strong>
-                    <?= count($tasks); ?>
-                </strong>
-
-                tasks
-
-            </span>
-
-            <span>
-                CRM Task Management
-            </span>
+            </div>
 
         </div>
 
     </div>
 
 </div>
-
-<script>
-
-/* =========================
-   SEARCH + FILTER
-========================= */
-
-const taskSearch =
-    document.getElementById(
-        "taskSearch"
-    );
-
-const statusFilter =
-    document.getElementById(
-        "statusFilter"
-    );
-
-const priorityFilter =
-    document.getElementById(
-        "priorityFilter"
-    );
-
-const taskRows =
-    document.querySelectorAll(
-        "#tasksTable tbody tr[data-status]"
-    );
-
-function filterTasks() {
-
-    const searchValue =
-        taskSearch.value
-            .toLowerCase()
-            .trim();
-
-    const statusValue =
-        statusFilter.value
-            .toLowerCase()
-            .trim();
-
-    const priorityValue =
-        priorityFilter.value
-            .toLowerCase()
-            .trim();
-
-    taskRows.forEach(function(row) {
-
-        const rowText =
-            row.textContent
-                .toLowerCase();
-
-        const rowStatus =
-            row.dataset.status
-                .toLowerCase();
-
-        const rowPriority =
-            row.dataset.priority
-                .toLowerCase();
-
-        const matchesSearch =
-            rowText.includes(
-                searchValue
-            );
-
-        const matchesStatus =
-            statusValue === ""
-            ||
-            rowStatus === statusValue
-            ||
-            (
-                statusValue === "pending" &&
-                rowStatus === "open"
-            )
-            ||
-            (
-                statusValue === "in_progress" &&
-                (
-                    rowStatus === "in progress" ||
-                    rowStatus === "processing"
-                )
-            );
-
-        const matchesPriority =
-            priorityValue === ""
-            ||
-            rowPriority === priorityValue;
-
-        row.style.display =
-            matchesSearch &&
-            matchesStatus &&
-            matchesPriority
-                ? ""
-                : "none";
-
-    });
-}
-
-taskSearch.addEventListener(
-    "input",
-    filterTasks
-);
-
-statusFilter.addEventListener(
-    "change",
-    filterTasks
-);
-
-priorityFilter.addEventListener(
-    "change",
-    filterTasks
-);
-
-</script>
 
 </body>
 
