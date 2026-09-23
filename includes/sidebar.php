@@ -1,13 +1,18 @@
 <?php
+
 $current_page = basename($_SERVER["PHP_SELF"]);
 $current_folder = basename(dirname($_SERVER["PHP_SELF"]));
+
 ?>
 
 <div class="sidebar">
 
     <div class="sidebar-logo">
+
         <h2>CRM</h2>
+
         <p>Management System</p>
+
     </div>
 
     <div class="sidebar-menu">
@@ -107,3 +112,14 @@ $current_folder = basename(dirname($_SERVER["PHP_SELF"]));
     </div>
 
 </div>
+
+<!-- CRM GLOBAL THEME -->
+
+<link
+    rel="stylesheet"
+    href="/crm/assets/css/theme.css"
+>
+
+<script
+    src="/crm/assets/js/theme.js"
+></script>

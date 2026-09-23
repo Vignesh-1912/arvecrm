@@ -1,0 +1,620 @@
+/* =========================================================
+   CRM THEME VARIABLES
+========================================================= */
+
+:root {
+    --crm-bg: #f8fafc;
+    --crm-surface: #ffffff;
+    --crm-surface-2: #f8fafc;
+
+    --crm-border: #e2e8f0;
+    --crm-border-light: #eef2f7;
+
+    --crm-text: #0f172a;
+    --crm-text-2: #334155;
+
+    --crm-muted: #64748b;
+    --crm-muted-2: #94a3b8;
+
+    --crm-primary: #2563eb;
+
+    --crm-input: #ffffff;
+}
+
+/* =========================================================
+   DARK VARIABLES
+========================================================= */
+
+html.crm-dark {
+
+    --crm-bg: #0f172a;
+
+    --crm-surface: #111827;
+
+    --crm-surface-2: #1e293b;
+
+    --crm-border: #334155;
+
+    --crm-border-light: #263447;
+
+    --crm-text: #f8fafc;
+
+    --crm-text-2: #e2e8f0;
+
+    --crm-muted: #cbd5e1;
+
+    --crm-muted-2: #94a3b8;
+
+    --crm-primary: #60a5fa;
+
+    --crm-input: #1e293b;
+}
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+html,
+body {
+
+    margin: 0;
+    padding: 0;
+
+}
+
+html,
+body {
+
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease;
+
+}
+
+body {
+
+    background:
+        var(--crm-bg) !important;
+
+    color:
+        var(--crm-text) !important;
+
+}
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+html.crm-dark .main-content,
+body.crm-dark .main-content {
+
+    background:
+        var(--crm-bg) !important;
+
+    color:
+        var(--crm-text) !important;
+
+}
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+html.crm-dark .sidebar {
+
+    background:
+        #111827 !important;
+
+    color:
+        #f8fafc !important;
+
+    border-right-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .sidebar-logo {
+
+    border-bottom-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .sidebar-logo h2 {
+
+    color:
+        #f8fafc !important;
+
+}
+
+html.crm-dark .sidebar-logo p {
+
+    color:
+        #94a3b8 !important;
+
+}
+
+html.crm-dark .sidebar-menu a,
+html.crm-dark .sidebar-bottom a {
+
+    color:
+        #cbd5e1 !important;
+
+}
+
+html.crm-dark .sidebar-menu a:hover,
+html.crm-dark .sidebar-bottom a:hover {
+
+    background:
+        #1e293b !important;
+
+    color:
+        #60a5fa !important;
+
+}
+
+html.crm-dark .sidebar-menu a.active {
+
+    background:
+        #1e3a8a !important;
+
+    color:
+        #60a5fa !important;
+
+}
+
+html.crm-dark .sidebar-bottom {
+
+    border-top-color:
+        #334155 !important;
+
+}
+
+/* =========================================================
+   COMMON CARDS
+========================================================= */
+
+html.crm-dark .page-header,
+html.crm-dark .summary-card,
+html.crm-dark .table-card,
+html.crm-dark .dashboard-card,
+html.crm-dark .bottom-card,
+html.crm-dark .card,
+html.crm-dark .welcome,
+html.crm-dark .report-card,
+html.crm-dark .financial-card,
+html.crm-dark .stat-card,
+html.crm-dark .topbar {
+
+    background:
+        var(--crm-surface) !important;
+
+    border-color:
+        var(--crm-border) !important;
+
+    color:
+        var(--crm-text) !important;
+
+    box-shadow:
+        0 2px 8px
+        rgba(0, 0, 0, 0.18) !important;
+
+}
+
+/* =========================================================
+   HEADINGS
+========================================================= */
+
+html.crm-dark h1,
+html.crm-dark h2,
+html.crm-dark h3,
+html.crm-dark h4,
+html.crm-dark h5,
+html.crm-dark h6 {
+
+    color:
+        var(--crm-text) !important;
+
+}
+
+/* =========================================================
+   TEXT
+========================================================= */
+
+html.crm-dark p,
+html.crm-dark .secondary,
+html.crm-dark .summary-label,
+html.crm-dark .summary-small,
+html.crm-dark .section-subtitle,
+html.crm-dark .financial-description,
+html.crm-dark .muted {
+
+    color:
+        var(--crm-muted) !important;
+
+}
+
+/* =========================================================
+   INPUTS
+========================================================= */
+
+html.crm-dark input,
+html.crm-dark select,
+html.crm-dark textarea {
+
+    background:
+        var(--crm-input) !important;
+
+    color:
+        #f8fafc !important;
+
+    border-color:
+        #475569 !important;
+
+}
+
+html.crm-dark input::placeholder,
+html.crm-dark textarea::placeholder {
+
+    color:
+        #94a3b8 !important;
+
+}
+
+/* =========================================================
+   TABLES
+========================================================= */
+
+html.crm-dark .table-wrap,
+html.crm-dark table {
+
+    background:
+        var(--crm-surface) !important;
+
+}
+
+html.crm-dark table th {
+
+    background:
+        #1e293b !important;
+
+    color:
+        #cbd5e1 !important;
+
+    border-color:
+        #334155 !important;
+
+}
+
+html.crm-dark table td {
+
+    color:
+        #cbd5e1 !important;
+
+    border-color:
+        #263447 !important;
+
+}
+
+html.crm-dark table tbody tr:hover {
+
+    background:
+        #172033 !important;
+
+}
+
+html.crm-dark .table-footer {
+
+    background:
+        #111827 !important;
+
+    border-color:
+        #334155 !important;
+
+    color:
+        #94a3b8 !important;
+
+}
+
+/* =========================================================
+   BUTTONS
+========================================================= */
+
+html.crm-dark .export-btn {
+
+    background:
+        #1e293b !important;
+
+    border-color:
+        #475569 !important;
+
+    color:
+        #e2e8f0 !important;
+
+}
+
+html.crm-dark .export-btn:hover {
+
+    background:
+        #334155 !important;
+
+}
+
+html.crm-dark .filter-select {
+
+    background:
+        #1e293b !important;
+
+    border-color:
+        #475569 !important;
+
+    color:
+        #e2e8f0 !important;
+
+}
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+html.crm-dark .search-box {
+
+    background:
+        #1e293b !important;
+
+    border-color:
+        #475569 !important;
+
+    color:
+        #cbd5e1 !important;
+
+}
+
+html.crm-dark .search-box input {
+
+    background:
+        transparent !important;
+
+    color:
+        #f8fafc !important;
+
+}
+
+html.crm-dark .search-results {
+
+    background:
+        #111827 !important;
+
+    border-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .search-result {
+
+    color:
+        #e2e8f0 !important;
+
+    border-bottom-color:
+        #263447 !important;
+
+}
+
+html.crm-dark .search-result:hover {
+
+    background:
+        #1e293b !important;
+
+}
+
+/* =========================================================
+   DASHBOARD TOP BAR
+========================================================= */
+
+html.crm-dark .dashboard-topbar {
+
+    background:
+        #111827 !important;
+
+    border-bottom-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .topbar-icon {
+
+    color:
+        #cbd5e1 !important;
+
+}
+
+html.crm-dark .profile {
+
+    border-left-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .profile-name {
+
+    color:
+        #f8fafc !important;
+
+}
+
+html.crm-dark .profile-role {
+
+    color:
+        #94a3b8 !important;
+
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+html.crm-dark .dashboard-heading h1,
+html.crm-dark .stat-number,
+html.crm-dark .stat-label,
+html.crm-dark .card-header h2,
+html.crm-dark .contact-name,
+html.crm-dark .task-title,
+html.crm-dark .rep-name {
+
+    color:
+        #f8fafc !important;
+
+}
+
+html.crm-dark .chart {
+
+    background-color:
+        #111827 !important;
+
+    border-color:
+        #334155 !important;
+
+}
+
+html.crm-dark .chart-labels {
+
+    color:
+        #94a3b8 !important;
+
+}
+
+html.crm-dark .donut-inner {
+
+    background:
+        #111827 !important;
+
+    color:
+        #f8fafc !important;
+
+}
+
+/* =========================================================
+   STAT CARDS
+========================================================= */
+
+html.crm-dark .stat-card {
+
+    background:
+        #111827 !important;
+
+}
+
+html.crm-dark .stat-card:hover {
+
+    background:
+        #172033 !important;
+
+}
+
+/* =========================================================
+   REPORTS
+========================================================= */
+
+html.crm-dark .report-card:hover {
+
+    background:
+        #172033 !important;
+
+    border-color:
+        #475569 !important;
+
+}
+
+/* =========================================================
+   ACTION LINKS
+========================================================= */
+
+html.crm-dark .view-link {
+
+    color:
+        #60a5fa !important;
+
+}
+
+html.crm-dark .edit-link {
+
+    color:
+        #34d399 !important;
+
+}
+
+html.crm-dark .delete-link {
+
+    color:
+        #f87171 !important;
+
+}
+
+/* =========================================================
+   THEME BUTTON
+========================================================= */
+
+.crm-theme-toggle {
+
+    width: 40px;
+    height: 40px;
+
+    border:
+        1px solid #dbe3ee;
+
+    border-radius: 9px;
+
+    background:
+        #ffffff;
+
+    color:
+        #334155;
+
+    display:
+        inline-flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    cursor:
+        pointer;
+
+    font-size:
+        18px;
+
+    padding:
+        0;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.15s ease;
+
+}
+
+.crm-theme-toggle:hover {
+
+    background:
+        #f1f5f9;
+
+    transform:
+        translateY(-1px);
+
+}
+
+html.crm-dark .crm-theme-toggle {
+
+    background:
+        #1e293b !important;
+
+    color:
+        #f8fafc !important;
+
+    border-color:
+        #475569 !important;
+
+}
