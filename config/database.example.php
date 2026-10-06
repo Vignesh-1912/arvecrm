@@ -7,11 +7,20 @@ if (is_file($environmentFile)) {
     require_once $environmentFile;
 }
 
-$host = getenv('DB_HOST') ?: 'localhost';
-$port = getenv('DB_PORT') ?: '3306';
-$dbname = getenv('DB_NAME') ?: 'crm_database';
-$username = getenv('DB_USER') ?: 'root';
-$password = getenv('DB_PASSWORD') ?: '';
+$appEnv = strtolower((string) (getenv('APP_ENV') ?: getenv('ENVIRONMENT') ?: ($_SERVER['APP_ENV'] ?? 'development')));
+$envSuffix = in_array($appEnv, ['production', 'prod'], true) ? 'PROD' : (in_array($appEnv, ['development', 'dev'], true) ? 'DEV' : strtoupper($appEnv));
+
+$resolvedHost = getenv('DB_HOST_' . $envSuffix) ?: getenv('DB_HOST') ?: 'localhost';
+$resolvedPort = getenv('DB_PORT_' . $envSuffix) ?: getenv('DB_PORT') ?: '3306';
+$resolvedDbName = getenv('DB_NAME_' . $envSuffix) ?: getenv('DB_NAME') ?: 'crm_database';
+$resolvedUser = getenv('DB_USER_' . $envSuffix) ?: getenv('DB_USER') ?: 'root';
+$resolvedPassword = getenv('DB_PASSWORD_' . $envSuffix) ?: getenv('DB_PASSWORD') ?: '';
+
+$host = $resolvedHost;
+$port = $resolvedPort;
+$dbname = $resolvedDbName;
+$username = $resolvedUser;
+$password = $resolvedPassword;
 
 try {
     $conn = new PDO(
