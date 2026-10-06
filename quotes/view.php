@@ -26,13 +26,27 @@ $sql = "SELECT
             quotes.*,
 
             companies.company_name,
+            companies.phone AS company_phone,
+            companies.email AS company_email,
+            companies.website AS company_website,
+            companies.address AS company_address,
+            companies.city AS company_city,
+            companies.state AS company_state,
+            companies.country AS company_country,
+            companies.postal_code AS company_postal_code,
 
             contacts.first_name,
             contacts.last_name,
             contacts.email AS contact_email,
             contacts.phone AS contact_phone,
+            contacts.address AS contact_address,
+            contacts.city AS contact_city,
+            contacts.state AS contact_state,
+            contacts.country AS contact_country,
+            contacts.postal_code AS contact_postal_code,
 
             customers.customer_code,
+            customers.customer_type,
 
             deals.title AS deal_title,
 
@@ -120,6 +134,36 @@ $quoteNumber = $quote["quote_number"] ?? "";
 $companyName = $quote["company_name"] ?? "";
 $customerCode = $quote["customer_code"] ?? "";
 $dealTitle = $quote["deal_title"] ?? "";
+$companyAddress = implode(
+    ", ",
+    array_filter(
+        [
+            $quote["company_address"] ?? "",
+            $quote["company_city"] ?? "",
+            $quote["company_state"] ?? "",
+            $quote["company_country"] ?? "",
+            $quote["company_postal_code"] ?? ""
+        ],
+        function ($part) {
+            return trim((string) $part) !== "";
+        }
+    )
+);
+$contactAddress = implode(
+    ", ",
+    array_filter(
+        [
+            $quote["contact_address"] ?? "",
+            $quote["contact_city"] ?? "",
+            $quote["contact_state"] ?? "",
+            $quote["contact_country"] ?? "",
+            $quote["contact_postal_code"] ?? ""
+        ],
+        function ($part) {
+            return trim((string) $part) !== "";
+        }
+    )
+);
 $contactName = "";
 
 if (!empty($quote["first_name"])) {
@@ -1091,6 +1135,255 @@ $initial = strtoupper(
 
         }
 
+        @media print {
+
+            @page {
+                size: A4 landscape;
+                margin: 9mm;
+            }
+
+            html,
+            body {
+                width: 100%;
+                background: #ffffff !important;
+                color: #172033 !important;
+                font-family: Arial, sans-serif !important;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .sidebar {
+                display: none !important;
+            }
+
+            .main-content {
+                width: 100%;
+                margin: 0;
+                padding: 0 !important;
+            }
+
+            .main-content > *:not(.print-sheet) {
+                display: none !important;
+            }
+
+            .print-sheet {
+                display: block !important;
+                width: 100%;
+                zoom: 0.88;
+                color: #172033 !important;
+                font-size: 9pt;
+                line-height: 1.35;
+            }
+
+            .print-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 18px;
+                padding: 15px 18px;
+                border-radius: 8px 8px 0 0;
+                background: #172554 !important;
+                color: #ffffff !important;
+            }
+
+            .print-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .print-brand-mark {
+                width: 42px;
+                height: 42px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid rgba(255, 255, 255, 0.35);
+                border-radius: 10px;
+                font-size: 17pt;
+                font-weight: 700;
+            }
+
+            .print-brand h1 {
+                margin: 0;
+                color: #ffffff !important;
+                font-size: 19pt;
+                line-height: 1.1;
+            }
+
+            .print-brand p {
+                margin: 4px 0 0;
+                color: #cbd5e1 !important;
+                font-size: 8pt;
+                letter-spacing: 1.2px;
+                text-transform: uppercase;
+            }
+
+            .print-reference {
+                display: grid;
+                grid-template-columns: auto auto;
+                gap: 4px 16px;
+                min-width: 220px;
+            }
+
+            .print-reference span {
+                color: #cbd5e1 !important;
+                text-align: right;
+            }
+
+            .print-reference strong {
+                color: #ffffff !important;
+                text-align: right;
+            }
+
+            .print-parties {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin: 12px 0;
+            }
+
+            .print-party {
+                min-height: 100px;
+                padding: 11px 13px;
+                border: 1px solid #dbe3ee;
+                border-radius: 7px;
+                background: #f8fafc !important;
+            }
+
+            .print-party h2 {
+                margin: 0 0 7px;
+                color: #2563eb !important;
+                font-size: 8pt;
+                font-weight: 700;
+                letter-spacing: 0.8px;
+                text-transform: uppercase;
+            }
+
+            .print-party p {
+                margin: 3px 0;
+                color: #334155 !important;
+                line-height: 1.25;
+            }
+
+            .print-party .print-party-name {
+                margin-bottom: 5px;
+                color: #0f172a !important;
+                font-size: 11pt;
+                font-weight: 700;
+            }
+
+            .print-items-title {
+                margin: 14px 0 6px;
+                color: #0f172a !important;
+                font-size: 10pt;
+                font-weight: 700;
+            }
+
+            .print-items {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+            }
+
+            .print-items th,
+            .print-items td {
+                padding: 6px 7px;
+                border-bottom: 1px solid #dbe3ee;
+                text-align: left;
+                vertical-align: top;
+                font-size: 8pt;
+                line-height: 1.25;
+                overflow-wrap: anywhere;
+            }
+
+            .print-items th {
+                border-top: 1px solid #172554;
+                background: #eaf0fb !important;
+                color: #172554 !important;
+                font-size: 7pt;
+                letter-spacing: 0.4px;
+                text-transform: uppercase;
+            }
+
+            .print-items tbody tr:nth-child(even) {
+                background: #f8fafc !important;
+            }
+
+            .print-items .numeric {
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            .print-bottom {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 280px;
+                gap: 20px;
+                align-items: start;
+                margin-top: 12px;
+            }
+
+            .print-notes {
+                padding: 9px 11px;
+                border-left: 3px solid #60a5fa;
+                background: #f8fafc !important;
+                color: #475569 !important;
+                overflow-wrap: anywhere;
+            }
+
+            .print-notes strong {
+                display: block;
+                margin-bottom: 3px;
+                color: #172554 !important;
+                font-size: 8pt;
+                text-transform: uppercase;
+            }
+
+            .print-totals {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .print-totals td {
+                padding: 4px 7px;
+                border: 0;
+                color: #475569 !important;
+                font-size: 8pt;
+            }
+
+            .print-totals td:last-child {
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            .print-totals .grand-total td {
+                padding-top: 8px;
+                border-top: 2px solid #172554;
+                color: #172554 !important;
+                font-size: 11pt;
+                font-weight: 700;
+            }
+
+            .print-footer {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                margin-top: 13px;
+                padding-top: 7px;
+                border-top: 1px solid #dbe3ee;
+                color: #64748b !important;
+                font-size: 7pt;
+            }
+
+            .print-sheet > *,
+            .print-parties,
+            .print-bottom,
+            .print-items tr {
+                break-inside: avoid;
+            }
+
+        }
+
     </style>
 
 </head>
@@ -1103,7 +1396,7 @@ $initial = strtoupper(
 
     <!-- Breadcrumb -->
 
-    <div class="breadcrumb">
+    <div class="breadcrumb no-print">
 
         <a href="../dashboard/index.php">
             Dashboard
@@ -1139,7 +1432,14 @@ $initial = strtoupper(
 
         </div>
 
-        <div class="header-actions">
+        <div class="header-actions no-print">
+
+            <a
+                href="pdf.php?id=<?php echo $id; ?>"
+                class="btn btn-secondary"
+            >
+                ↓ PDF / Print Quote
+            </a>
 
             <a
                 href="edit.php?id=<?php echo $id; ?>"
@@ -1150,7 +1450,7 @@ $initial = strtoupper(
 
             <a
                 href="quote_items.php?quote_id=<?php echo $id; ?>"
-                class="btn btn-success"
+                class="btn btn-success no-print"
             >
                 + Manage Products
             </a>
@@ -2154,7 +2454,7 @@ $initial = strtoupper(
 
             <!-- Quick Actions -->
 
-            <div class="side-card">
+            <div class="side-card no-print">
 
                 <h3>
                     Quick Actions
@@ -2300,7 +2600,7 @@ $initial = strtoupper(
 
     <!-- Bottom Actions -->
 
-    <div class="bottom-actions">
+    <div class="bottom-actions no-print">
 
         <a
             href="index.php"
@@ -2324,6 +2624,129 @@ $initial = strtoupper(
         </a>
 
     </div>
+
+    <section class="print-sheet" style="display:none;">
+        <div class="print-header">
+            <div class="print-brand">
+                <div class="print-brand-mark">A</div>
+                <div>
+                    <h1>Quotation</h1>
+                    <p>Arve CRM · Sales Proposal</p>
+                </div>
+            </div>
+            <div class="print-reference">
+                <span>Quote Number</span>
+                <strong><?php echo htmlspecialchars($quoteNumber); ?></strong>
+                <span>Quote Date</span>
+                <strong><?php echo htmlspecialchars($quote["created_at"] ?? ""); ?></strong>
+                <span>Valid Until</span>
+                <strong><?php echo htmlspecialchars($quote["valid_until"] ?? "Not specified"); ?></strong>
+                <span>Status</span>
+                <strong><?php echo htmlspecialchars($statusLabel); ?></strong>
+            </div>
+        </div>
+
+        <div class="print-parties">
+            <div class="print-party">
+                <h2>Company Information</h2>
+                <p class="print-party-name"><?php echo htmlspecialchars($companyName !== "" ? $companyName : "Company not linked"); ?></p>
+                <?php if ($companyAddress !== ""): ?>
+                    <p><?php echo htmlspecialchars($companyAddress); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($quote["company_phone"])): ?>
+                    <p><?php echo htmlspecialchars($quote["company_phone"]); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($quote["company_email"])): ?>
+                    <p><?php echo htmlspecialchars($quote["company_email"]); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($quote["company_website"])): ?>
+                    <p><?php echo htmlspecialchars($quote["company_website"]); ?></p>
+                <?php endif; ?>
+            </div>
+            <div class="print-party">
+                <h2>Customer Information</h2>
+                <p class="print-party-name"><?php echo htmlspecialchars($customerCode !== "" ? $customerCode : "Customer not linked"); ?></p>
+                <?php if (!empty($quote["customer_type"])): ?>
+                    <p><strong>Type:</strong> <?php echo htmlspecialchars($quote["customer_type"]); ?></p>
+                <?php endif; ?>
+                <?php if ($contactName !== ""): ?>
+                    <p><strong>Contact:</strong> <?php echo htmlspecialchars($contactName); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($quote["contact_email"])): ?>
+                    <p><strong>Email:</strong> <?php echo htmlspecialchars($quote["contact_email"]); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($quote["contact_phone"])): ?>
+                    <p><strong>Phone:</strong> <?php echo htmlspecialchars($quote["contact_phone"]); ?></p>
+                <?php endif; ?>
+                <?php if ($contactAddress !== ""): ?>
+                    <p><?php echo htmlspecialchars($contactAddress); ?></p>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <h2 class="print-items-title">Quoted Products & Services</h2>
+        <table class="print-items">
+            <thead>
+                <tr>
+                    <th style="width:4%;">#</th>
+                    <th style="width:16%;">Product</th>
+                    <th style="width:10%;">SKU</th>
+                    <th style="width:27%;">Description</th>
+                    <th class="numeric" style="width:7%;">Qty</th>
+                    <th class="numeric" style="width:10%;">Unit Price</th>
+                    <th class="numeric" style="width:8%;">Discount</th>
+                    <th class="numeric" style="width:8%;">Tax</th>
+                    <th class="numeric" style="width:10%;">Line Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (count($quote_items) > 0): ?>
+                    <?php foreach ($quote_items as $index => $item): ?>
+                        <tr>
+                            <td><?php echo $index + 1; ?></td>
+                            <td><?php echo htmlspecialchars($item["product_name"] ?? "-"); ?></td>
+                            <td><?php echo htmlspecialchars($item["sku"] ?? "-"); ?></td>
+                            <td><?php echo htmlspecialchars($item["description"] ?? "-"); ?></td>
+                            <td class="numeric"><?php echo number_format((float) $item["quantity"], 2); ?></td>
+                            <td class="numeric">₹ <?php echo number_format((float) $item["unit_price"], 2); ?></td>
+                            <td class="numeric">₹ <?php echo number_format((float) $item["discount"], 2); ?></td>
+                            <td class="numeric">₹ <?php echo number_format((float) $item["tax"], 2); ?></td>
+                            <td class="numeric"><strong>₹ <?php echo number_format((float) $item["total"], 2); ?></strong></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="9">No products have been added to this quote.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+
+        <div class="print-bottom">
+            <?php if (!empty($quote["notes"])): ?>
+                <div class="print-notes">
+                    <strong>Notes</strong>
+                    <?php echo nl2br(htmlspecialchars($quote["notes"])); ?>
+                </div>
+            <?php else: ?>
+                <div></div>
+            <?php endif; ?>
+
+            <table class="print-totals">
+                <tbody>
+                    <tr><th>Subtotal</th><td>₹ <?php echo number_format($subtotal, 2); ?></td></tr>
+                    <tr><th>Tax</th><td>₹ <?php echo number_format($taxAmount, 2); ?></td></tr>
+                    <tr><th>Discount</th><td>₹ <?php echo number_format($discountAmount, 2); ?></td></tr>
+                    <tr class="grand-total"><td>Total Due</td><td>₹ <?php echo number_format($totalAmount, 2); ?></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="print-footer">
+            <span>Thank you for considering our proposal.</span>
+            <span><?php echo htmlspecialchars($quote["created_by_name"] ?? "Arve CRM"); ?></span>
+        </div>
+    </section>
 
 </div>
 
