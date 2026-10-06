@@ -74,6 +74,13 @@ $current_folder = basename(dirname($_SERVER["PHP_SELF"]));
         </a>
 
         <a
+            href="/crm/invoices/index.php"
+            class="<?php echo ($current_folder == 'invoices') ? 'active' : ''; ?>"
+        >
+            🧾 Invoices
+        </a>
+
+        <a
             href="/crm/sales/index.php"
             class="<?php echo ($current_folder == 'sales') ? 'active' : ''; ?>"
         >
